@@ -11,16 +11,6 @@ from scrapy.loader.processors import MapCompose, Identity, Compose, TakeFirst
 
 import re
 #import datetime
-
-""" def format2unicode(string, loader_context):
-    old_char = loader_context.get('old_char')
-    new_char = loader_context.get('new_char')
-    return str(string).replace(char, to_char) """
-
-""" class CarItemLoader(ItemLoader):
-    replace_spaces = MapCompose(format2unicode, old_char=u'\xa0', new_char=u'')
-    replace_rub = MapCompose(format2unicode, old_char=u'\u20BD', new_char=u'')
-    replace_thinspaces = MapCompose(format2unicode, old_char=u'\u2009', new_char=u'') """
     
 def raw_field():
     def parse_raw_line(value):
