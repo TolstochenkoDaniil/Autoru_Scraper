@@ -54,6 +54,9 @@ class CarBriefItem(scrapy.Item):
     link = scrapy.Field()
     time_stamp = scrapy.Field()
     offer_price = scrapy.Field()
+    ID - scrapy.Field(
+        output_processor=MapCompose(lambda value:  re.split('/',value.revers()[1]))
+    )
 
 class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
@@ -92,6 +95,7 @@ class CarLoader(ItemLoader):
             self.add_value('advert', 'owner')
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
+        self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
     
     def parse_new(self):
         self.add_xpath('title', 
@@ -122,6 +126,7 @@ class CarLoader(ItemLoader):
                        '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
+        self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
 
 class ListBrandsModelsItem(scrapy.Item):
     

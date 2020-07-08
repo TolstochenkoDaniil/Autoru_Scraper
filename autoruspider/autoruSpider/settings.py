@@ -92,7 +92,7 @@ ROBOTSTXT_OBEY = True
 FEED_FORMAT = 'csv'
 FEED_URI = 'toyota.csv'
 FEED_EXPORT_ENCODING = 'utf-8'
-FEED_EXPORT_FIELDS = ['title','price','offer_price','year','distance',
+FEED_EXPORT_FIELDS = ['ID','title','price','offer_price','year','distance',
                       'engine_type','fuel_type','horse_power',
                       'car_type','wheel_type','transmission',
                       'color','city','advert','link']
