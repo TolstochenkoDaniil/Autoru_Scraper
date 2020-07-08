@@ -3,3 +3,5 @@ autoruSpider/autoruSpider/__pycache__
 autoruSpider/autoruSpider/spiders/__pycache__
 autoruSpider/autoruSpider/*.csv
 .vscode
+autoruSpider/autoruSpider/*.log
+test.*

@@ -9,6 +9,7 @@ import scrapy
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import MapCompose, Identity, Compose, TakeFirst
 
+import urllib.parse as url_parse
 import re
 #import datetime
     
@@ -48,10 +49,12 @@ class CarBriefItem(scrapy.Item):
     # )
 
     engine_type = scrapy.Field(
-        output_processor=MapCompose(lambda value: re.split('/', value)[0].replace('л','').strip()) # text: 1.6 л / 105 л.с. / Бензин
+        output_processor=MapCompose(lambda value: re.split('/', value)[0],
+                                    lambda value: value.replace('л','').strip()) # text: 1.6 л / 105 л.с. / Бензин
     )
     horse_power = scrapy.Field(
-        output_processor=MapCompose(lambda value: re.split('/', value)[1].replace('л.с.','').strip())
+        output_processor=MapCompose(lambda value: re.split('/', value)[1],
+                                    lambda value: value.replace('л.с.','').strip())
     )
     fuel_type = scrapy.Field(
         output_processor=MapCompose(lambda value: re.split('/', value)[2].strip())
@@ -66,19 +69,19 @@ class CarBriefItem(scrapy.Item):
     time_stamp = scrapy.Field()
     offer_price = scrapy.Field()
     ID = scrapy.Field(
-        output_processor=MapCompose(lambda value: re.split('/', value[::-1]),   
-                                    lambda value: value[1],
-                                    lambda value: value[::-1])
+        output_processor=MapCompose(lambda value: url_parse.urlparse(value).path,
+                                    lambda value: re.findall('[0-9]+\-.*[^/]',value),
+                                    lambda value: value[0])
     )
 
-class CarLoader(ItemLoader):нам основной
+class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
     
     def parse_old(self):
         self.add_xpath('title', 
                            './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
-        self.add_xpath('raw_data', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        # self.add_xpath('raw_data', 
+        #                    './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         # self.add_value('engine_type', 
         #                         self.get_collected_values('raw_data'))
         # self.add_value('horse_power', 
@@ -86,9 +89,12 @@ class CarLoader(ItemLoader):нам основной
         # self.add_value('fuel_type', 
         #                         self.get_collected_values('raw_data'))
 
-        self.add_css('engine_type', '.ListingItemTechSummaryDesktop__cell::text') 
-        self.add_css('horse_power', '.ListingItemTechSummaryDesktop__cell::text')
-        self.add_css('fuel_type','.ListingItemTechSummaryDesktop__cell::text')
+        self.add_xpath('engine_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('horse_power', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('fuel_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
 
         self.add_xpath('transmission', 
                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
@@ -128,10 +134,12 @@ class CarLoader(ItemLoader):нам основной
         # self.add_value('fuel_type', 
         #                         self.get_collected_values('raw_data'))
 
-
-        self.add_css('engine_type', '.ListingItemTechSummaryDesktop__cell::text') 
-        self.add_css('horse_power', '.ListingItemTechSummaryDesktop__cell::text')
-        self.add_css('fuel_type','.ListingItemTechSummaryDesktop__cell::text')   
+        self.add_xpath('engine_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('horse_power', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('fuel_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()') 
                               
         self.add_xpath('car_type', 
                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
@@ -153,30 +161,103 @@ class CarLoader(ItemLoader):нам основной
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
 
-class ListBrandsModelsItem(scrapy.Item):
+class ModelsItem(scrapy.Item):
     
-    TerrSet = ['moskovskaya_oblast', 'leningradskaya_oblast']
-    for Terr in TerrSet:
+    # TerrSet = ['moskovskaya_oblast', 'leningradskaya_oblast']
+    # for Terr in TerrSet:
         # Рабочая версия получения параметров из строк
-        brand = scrapy.Field(
+    brand = scrapy.Field(
             output_processor=MapCompose(lambda value: re.split('/',value)[3])
         )
-        model = scrapy.Field(
+    model = scrapy.Field(
             output_processor=MapCompose(lambda value: re.split('/',value)[4])
         )
-        link = scrapy.Field(
+    link = scrapy.Field(
             output_processor=MapCompose(lambda value: 'https://auto.ru/'+ Terr + value.replace('/catalog','') + 'all/')
         )
 
 
-class ListBrandsModelsLoader(ItemLoader):
+class ModelsLoader(ItemLoader):
     default_output_processor = TakeFirst()
     
-    def parse (self):
-        ##self.add_css('brand', '.Link.ListingPopularMMM-module__itemName::text')
-        ##self.add_css('link','.Link.ListingPopularMMM-module__itemName::attr(href)')
+    def get_model (self):
         self.add_css('link','::attr(href)')
         self.add_css('brand','::attr(href)')
         self.add_css('model','::attr(href)')
 
-##scrapy crawl ListBrandsModels
+
+
+
+# Test
+#_________________________________________________________#
+class SpiderTestItem(scrapy.Item):
+    title = scrapy.Field()
+    price = scrapy.Field(
+        input_processor=MapCompose(lambda value: value.replace(u'\xa0', u''),
+                                   lambda value: value.replace('\u20bd', u'')),
+    )
+    year = scrapy.Field()
+    distance = scrapy.Field(
+        input_processor=MapCompose(lambda value: value.replace(u'\xa0', u''),
+                                   lambda value: value.replace(u'км', u''))
+    )
+
+    engine_type = scrapy.Field(
+        output_processor=MapCompose(lambda value: re.split('/', value)[0],
+                                    lambda value: value.replace('л','').strip()) # text: 1.6 л / 105 л.с. / Бензин
+    )
+    horse_power = scrapy.Field(
+        output_processor=MapCompose(lambda value: re.split('/', value)[1],
+                                    lambda value: value.replace('л.с.','').strip())
+    )
+    fuel_type = scrapy.Field(
+        output_processor=MapCompose(lambda value: re.split('/', value)[2].strip())
+    )
+    transmission = scrapy.Field()
+    car_type = scrapy.Field()
+    wheel_type = scrapy.Field()
+    color = scrapy.Field()
+    city = scrapy.Field()
+    advert = scrapy.Field()
+    link = scrapy.Field()
+    time_stamp = scrapy.Field()
+    offer_price = scrapy.Field()
+    ID = scrapy.Field(
+        output_processor=MapCompose(lambda value: re.split('/', value[0][::-1]),   
+                                    lambda value: value[1],
+                                    lambda value: value[::-1])
+    )
+
+class TestLoader(ItemLoader):
+    default_output_processor = TakeFirst()
+
+    def get_test_fields(self):
+        self.add_xpath('title', 
+                           './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
+        
+        self.add_xpath('engine_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('horse_power', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('fuel_type', 
+                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+ 
+        self.add_xpath('car_type', 
+                           './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+        self.add_value('color', 'NaN')
+        self.add_xpath('wheel_type', 
+                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+        self.add_xpath('transmission', 
+                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+        self.add_xpath('price', 
+                           './/div[@class="ListingItemPrice-module__content"]//text()')
+        self.add_xpath('city', 
+                           './/span[@class="MetroListPlace__regionName MetroListPlace_nbsp"]//text()')
+        self.add_xpath('year', 
+                           './/div[@class="ListingItem-module__year"]//text()')
+        self.add_value('distance', 'NaN')
+        self.add_css('advert', 
+                       '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
+        self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
+        self.add_css('offer_price','.OfferPriceBadge::text')
+        self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
