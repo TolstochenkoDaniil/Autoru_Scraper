@@ -36,5 +36,6 @@ class TestSpider(Spider):
                 InfoModelsLoader = ModelsLoader(item = ModelsItem(terr), selector=selector)
                 InfoModelsLoader.get_model()
                 InfoModelsLoader.load_item()
-        
+        # comment
+        # comment
         return None
