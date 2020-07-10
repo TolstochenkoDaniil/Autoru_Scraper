@@ -1,10 +1,13 @@
 from scrapy import Spider
-from ..items import SpiderTestItem, TestLoader
+
+import re
+
+from ..items import SpiderTestItem, TestLoader, ModelsLoader, ModelsItem
 
 class TestSpider(Spider):
     name = 'TestSpider'
     allowed_domains = ['auto.ru']
-    start_urls = ['https://auto.ru/cars/toyota/all/'] # Сюда пихаем ссылку
+    start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html'] # Сюда пихаем ссылку
 
     custom_settings = {
         'FEED_FORMAT' : 'csv',
@@ -18,15 +21,20 @@ class TestSpider(Spider):
     
     def parse (self, response):
 
-        selectors = response.xpath('//div[@class=$val]', 
-                                   val="ListingItem-module__main") # Тег
+        selectors = response.xpath('/html/body/div[1]/div') # Тег
         for selector in selectors:
-            yield self.parse_ithem(selector, response)
+            yield self.parse_item(selector, response)
     
     
-    def parse_ithem(self, selector,response):
+    def parse_item(self, selector, response):
 
-        InfoTestLoader = TestLoader(item = SpiderTestItem(), selector=selector)
-        InfoTestLoader.get_test_fields()
-
-        return InfoTestLoader.load_item()
+        TerrSet = ['moskovskaya_oblast', 'leningradskaya_oblast']
+        filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
+        
+        if filter_brand == 'toyota':
+            for terr in TerrSet:
+                InfoModelsLoader = ModelsLoader(item = ModelsItem(terr), selector=selector)
+                InfoModelsLoader.get_model()
+                InfoModelsLoader.load_item()
+        
+        return None

@@ -163,9 +163,14 @@ class CarLoader(ItemLoader):
 
 class ModelsItem(scrapy.Item):
     
-    # TerrSet = ['moskovskaya_oblast', 'leningradskaya_oblast']
-    # for Terr in TerrSet:
+    def __init__(self, terr):
+        self.terr = terr
         # Рабочая версия получения параметров из строк
+        
+    @property
+    def terr(self):
+        return self.__terr
+    
     brand = scrapy.Field(
             output_processor=MapCompose(lambda value: re.split('/',value)[3])
         )
@@ -173,7 +178,7 @@ class ModelsItem(scrapy.Item):
             output_processor=MapCompose(lambda value: re.split('/',value)[4])
         )
     link = scrapy.Field(
-            output_processor=MapCompose(lambda value: 'https://auto.ru/'+ Terr + value.replace('/catalog','') + 'all/')
+            output_processor=MapCompose(lambda value: 'https://auto.ru/'+ terr + value.replace('/catalog','') + 'all/')
         )
 
 

@@ -48,7 +48,6 @@ class AllCars(Spider):
 
         selectors = response.xpath('//div[@class=$val]', 
                                 val="ListingItem-module__main")
-
         for selector in selectors:
             yield self.parse_item(selector, response)
 
