@@ -162,14 +162,7 @@ class CarLoader(ItemLoader):
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
 
 class ModelsItem(scrapy.Item):
-    
-    def __init__(self, terr):
-        self.terr = terr
-        # Рабочая версия получения параметров из строк
-        
-    @property
-    def terr(self):
-        return self.__terr
+    #Рабочая версия получения параметров из строк
     
     brand = scrapy.Field(
             output_processor=MapCompose(lambda value: re.split('/',value)[3])
@@ -178,21 +171,23 @@ class ModelsItem(scrapy.Item):
             output_processor=MapCompose(lambda value: re.split('/',value)[4])
         )
     link = scrapy.Field(
-            output_processor=MapCompose(lambda value: 'https://auto.ru/'+ terr + value.replace('/catalog','') + 'all/')
+            output_processor=MapCompose(lambda value: ''.join(['https://auto.ru/',
+                                                              value.get('terr'),
+                                                              value.get('url').replace('/catalog',''),
+                                                              'all/']))
         )
-
 
 class ModelsLoader(ItemLoader):
     default_output_processor = TakeFirst()
     
-    def get_model (self):
-        self.add_css('link','::attr(href)')
+    def get_model(self, terr):
+        params = {}
+        params['terr'] = terr
+        params['url'] = self.get_css('::attr(href)')[0]
+        self.add_value('link', params)
         self.add_css('brand','::attr(href)')
         self.add_css('model','::attr(href)')
-
-
-
-
+        
 # Test
 #_________________________________________________________#
 class SpiderTestItem(scrapy.Item):

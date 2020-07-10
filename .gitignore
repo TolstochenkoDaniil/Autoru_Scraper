@@ -5,3 +5,5 @@ autoruSpider/autoruSpider/*.csv
 .vscode
 autoruSpider/autoruSpider/*.log
 test.*
+#!test.csv
+#!brands.csv

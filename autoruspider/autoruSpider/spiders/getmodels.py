@@ -23,13 +23,9 @@ class Brands(Spider):
     
     def parse_item(self, selector,response):
 
-        TerrSet = ['moskovskaya_oblast', 'leningradskaya_oblast']
         filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
-        
+
         if filter_brand == 'toyota':
-            for terr in TerrSet:
-                InfoModelsLoader = ModelsLoader(item = ModelsItem(), selector=selector)
-                InfoModelsLoader.get_model()
-                
-                return InfoModelsLoader.load_item()
-                
+            InfoModelsLoader = ModelsLoader(item = ModelsItem(), selector=selector)
+            InfoModelsLoader.get_model()  
+            return InfoModelsLoader.load_item()
