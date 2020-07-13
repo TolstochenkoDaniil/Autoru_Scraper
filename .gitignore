@@ -5,6 +5,8 @@ autoruSpider/autoruSpider/*.csv
 .vscode
 autoruSpider/autoruSpider/*.log
 test.*
-#!test.csv
+!test.csv
 !brands.csv
 !all.csv
+*.csv
+*.log

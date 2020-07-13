@@ -152,7 +152,6 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-        self.add_Value('')
 
 class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк

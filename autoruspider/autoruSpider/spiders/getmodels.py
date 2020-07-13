@@ -18,7 +18,7 @@ class Brands(Spider):
     
     logger = logging.getLogger('debug_info')
 
-    f_handler = logging.FileHandler('brands.log')
+    f_handler = logging.FileHandler('brands.log', 'w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     f_handler.setFormatter(f_format)
@@ -26,20 +26,20 @@ class Brands(Spider):
     logger.addHandler(f_handler)
 
     def parse(self, response):
-
         selectors = response.xpath('/html/body/div[1]/div') # Тег
+        
         for selector in selectors:
             for area in self.area_list:
                 yield self.parse_item(selector, response, area)
     
     
-    def parse_item(self, selector,response, area):
-
-        filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
+    def parse_item(self, selector, response, area):        
+        brands_filter = ['toyota', 'kia', 'ford', 'skoda', 'hyundai', 'mercedes']
+        brand = re.split('/', selector.css('::attr(href)').get())[3]
         
-        if filter_brand == 'toyota':
+        if brand in brands_filter:
             InfoModelsLoader = ModelsLoader(item = ModelsItem(),
                                             selector=selector)
             InfoModelsLoader.get_model(area)
-
+            self.logger.info("Added link: %s", InfoModelsLoader.get_collected_values('link'))
             return InfoModelsLoader.load_item()

@@ -20,7 +20,7 @@ class TestSpider(Spider):
     
     logger = logging.getLogger('debug_info')
 
-    f_handler = logging.FileHandler('test.log')
+    f_handler = logging.FileHandler('test.log', mode='w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     f_handler.setFormatter(f_format)
