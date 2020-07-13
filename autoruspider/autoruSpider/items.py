@@ -73,12 +73,12 @@ class CarBriefItem(scrapy.Item):
                                     lambda value: re.findall('[0-9]+\-.*[^/]',value)
                                     )
     )
-    IsMSK = scrapy.Field()
+    isMSK = scrapy.Field()
 
 class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
     
-    def parse_old(self):
+    def parse_old(self, area):
         self.add_xpath('title', 
                            './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
         self.add_xpath('engine_type', 
@@ -112,20 +112,11 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-    
-    def parse_new(self):
+        self.add_value('isMsk', area)
+        
+    def parse_new(self, area):
         self.add_xpath('title', 
                            './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
-
-        # self.add_xpath('raw_data', 
-        #                    './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
-        # self.add_value('engine_type', 
-        #                         self.get_collected_values('raw_data'))
-        # self.add_value('horse_power', 
-        #                         self.get_collected_values('raw_data'))
-        # self.add_value('fuel_type', 
-        #                         self.get_collected_values('raw_data'))
-
         self.add_xpath('engine_type', 
                             './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('horse_power', 
@@ -152,6 +143,7 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
+        self.add_value('isMsk', area)
 
 class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк

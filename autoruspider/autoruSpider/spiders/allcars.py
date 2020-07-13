@@ -33,7 +33,7 @@ class AllCars(Spider):
     logger.addHandler(f_handler)
 
     def parse (self, response):
-        self.logger.info("Response url: %s", response.url)
+        self.logger.info("Response url in `parse` function: %s", response.url)
         
         next_sel = response.css('.ListingPagination-module__next::attr(href)')
         
@@ -46,17 +46,10 @@ class AllCars(Spider):
         
         for selector in selectors:
             yield self.parse_item(selector, response)
-            
-    def parse_url(self, response):
-        self.logger.info("Response in function 'parse_url': %s", response.url)
-
-        selectors = response.xpath('//div[@class=$val]', 
-                                val="ListingItem-module__main")
-        for selector in selectors:
-            yield self.parse_item(selector, response)
 
     def parse_item(self, selector, response):
         carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)
+        self.logger.info("Response url in `parse_item` function: %s",response.url)
         
         if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
             carInfoLoader.parse_new()

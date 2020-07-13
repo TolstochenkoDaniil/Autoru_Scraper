@@ -1,22 +1,26 @@
 from scrapy import Spider
+from scrapy.http import Request
+from scrapy.spidermiddlewares.httperror import HttpError
+from twisted.internet.error import DNSLookupError
+from twisted.internet.error import TimeoutError, TCPTimedOutError
 
 import logging
+import urllib.parse as url_parse
 import re
+import pandas as pd
 
-from ..items import SpiderTestItem, TestLoader, ModelsLoader, ModelsItem
+from ..items import SpiderTestItem, TestLoader, ModelsLoader, ModelsItem, CarBriefItem, CarLoader
 
 class TestSpider(Spider):
-    name = 'TestSpider'
+    name = 'test'
     allowed_domains = ['auto.ru']
-    start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html'] # Сюда пихаем ссылку
-    area_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
-    
+    start_urls = ['https://auto.ru/moskovskaya_oblast/cars/skoda/octavia/all/',
+                  'https://auto.ru/leningradskaya_oblast/cars/skoda/octavia/all/']
     custom_settings = {
         'FEED_FORMAT' : 'csv',
         'FEED_URI' : 'test.csv',
-        'FEED_EXPORT_ENCODING' : 'utf-8',
-        # Набор полей для вывода
-        'FEED_EXPORT_FIELDS': ['brand','model','link']}
+        'FEED_EXPORT_ENCODING' : 'utf-8'
+        }
     
     logger = logging.getLogger('debug_info')
 
@@ -26,23 +30,49 @@ class TestSpider(Spider):
     f_handler.setFormatter(f_format)
 
     logger.addHandler(f_handler)
-    
+
     def parse (self, response):
+        self.logger.info("Response url in `parse` function: %s", response.url)
         
-        selectors = response.xpath('/html/body/div[1]/div') # Тег
+        next_sel = response.css('.ListingPagination-module__next::attr(href)')
+        
+        # Генератор для извлечения следующей страницы
+        for next_page in next_sel.extract():
+            yield Request(url_parse.urljoin(response.url, next_page))
+            
+        selectors = response.xpath('//div[@class=$val]', 
+                                val="ListingItem-module__main")
+        
         for selector in selectors:
-            for area in self.area_list:
-                yield self.parse_item(selector, response, area)
+            yield self.parse_item(selector, response)
+
+    def parse_item(self, selector, response):
+        carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)
+        self.logger.info("Response url in `parse_item` function: %s",response.url)
+        area = self.parse_url(response.url)
+        
+        if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
+            carInfoLoader.parse_new(area)
+        else:
+            carInfoLoader.parse_old(area)
+        
+        return carInfoLoader.load_item()
     
+    def errback_url(self, failure):
+        self.logger.error(repr(failure))
+        
+        if failure.check(HttpError):
+            response = failure.value.response
+            self.logger.error("HttpError on %s", response.url)
+        elif failure.check(DNSLookupError):
+            request = failure.request
+            self.logger.error("DNSLookupError on %s", request.url)
+        elif failure.check(TimeoutError, TCPTimedOutError):
+            request = failure.request
+            self.logger.error("TimeoutError on %s", request.url)
     
-    def parse_item(self, selector, response, area):
-        filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
+    def parse_url(self, url):
+        url_path = url_parse.urlparse(url).path
+        match = re.findall('/([a-z]+_[a-z]+)/', url_path)
         
-        if filter_brand == 'toyota':
-            InfoModelsLoader = ModelsLoader(item = ModelsItem(),
-                                            selector=selector)
-            InfoModelsLoader.get_model(area)
-        
-            return InfoModelsLoader.load_item()
-        
-        
+        return match[0]
