@@ -9,7 +9,6 @@ import logging
 import pandas as pd
 
 from ..items import CarBriefItem, CarLoader
-# should be stored in db?
 
 class AllCars(Spider):
     name = "all_cars"
@@ -21,13 +20,13 @@ class AllCars(Spider):
     custom_settings = {
         'FEED_FORMAT' : 'csv',
         'FEED_URI' : 'all.csv',
-        'FEED_EXPORT_ENCODING' : 'utf-8'
+        'FEED_EXPORT_ENCODING' : 'cp-1251'
         }
     
     logger = logging.getLogger('debug_info')
 
-    f_handler = logging.FileHandler('all_cars.log')
-    f_handler.setLevel(logging.DEBUG)
+    f_handler = logging.FileHandler('all_cars.log', mode='w')
+    f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     f_handler.setFormatter(f_format)
 
@@ -36,15 +35,16 @@ class AllCars(Spider):
     def parse (self, response):
         self.logger.info("Initial response %s", repr(response))
         
-        for url in self.start_urls:
-            self.logger.debug("Current url: %s", url) 
-            yield Request(url,
-                          callback=self.parse_url,
-                          errback=self.errback_url,
-                          dont_filter=True)    
+        #for url in self.start_urls:
+        url = response.url
+        self.logger.debug("Url in function 'parse': %s", url) 
+        yield Request(url,
+                        callback=self.parse_url,
+                        errback=self.errback_url,
+                        dont_filter=True)    
     
     def parse_url(self, response):
-        self.logger.debug("Response for url %s", response.url)
+        self.logger.debug("Response in function 'parse_url': %s", response.url)
 
         selectors = response.xpath('//div[@class=$val]', 
                                 val="ListingItem-module__main")

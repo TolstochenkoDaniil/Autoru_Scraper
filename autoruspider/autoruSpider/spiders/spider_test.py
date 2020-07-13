@@ -9,7 +9,7 @@ class TestSpider(Spider):
     name = 'TestSpider'
     allowed_domains = ['auto.ru']
     start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html'] # Сюда пихаем ссылку
-    terr_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
+    area_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
     
     custom_settings = {
         'FEED_FORMAT' : 'csv',
@@ -31,17 +31,17 @@ class TestSpider(Spider):
         
         selectors = response.xpath('/html/body/div[1]/div') # Тег
         for selector in selectors:
-            for terr in self.terr_list:
-                yield self.parse_item(selector, response, terr)
+            for area in self.area_list:
+                yield self.parse_item(selector, response, area)
     
     
-    def parse_item(self, selector, response, terr):
+    def parse_item(self, selector, response, area):
         filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
         
         if filter_brand == 'toyota':
             InfoModelsLoader = ModelsLoader(item = ModelsItem(),
                                             selector=selector)
-            InfoModelsLoader.get_model(terr)
+            InfoModelsLoader.get_model(area)
         
             return InfoModelsLoader.load_item()
         

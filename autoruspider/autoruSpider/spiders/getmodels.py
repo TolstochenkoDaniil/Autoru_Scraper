@@ -1,12 +1,14 @@
 from scrapy import Spider
 from ..items import ModelsItem, ModelsLoader
+import logging
 
 import re
 
 class Brands(Spider):
     name = 'brands'
     allowed_domains = ['auto.ru']
-    start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html']
+    start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html'] # Сюда пихаем ссылку
+    area_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
 
     custom_settings = {
         'FEED_FORMAT' : 'csv',
@@ -14,18 +16,30 @@ class Brands(Spider):
         'FEED_EXPORT_ENCODING' : 'utf-8',
         'FEED_EXPORT_FIELDS' : ['brand','model','link']}
     
+    logger = logging.getLogger('debug_info')
+
+    f_handler = logging.FileHandler('brands.log')
+    f_handler.setLevel(logging.INFO)
+    f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    f_handler.setFormatter(f_format)
+
+    logger.addHandler(f_handler)
+
     def parse(self, response):
 
-        selectors = response.xpath('/html/body/div[1]/div')
+        selectors = response.xpath('/html/body/div[1]/div') # Тег
         for selector in selectors:
-            yield self.parse_item(selector, response)
+            for area in self.area_list:
+                yield self.parse_item(selector, response, area)
     
     
-    def parse_item(self, selector,response):
+    def parse_item(self, selector,response, area):
 
         filter_brand = re.split('/', selector.css('::attr(href)').get())[3]
-
+        
         if filter_brand == 'toyota':
-            InfoModelsLoader = ModelsLoader(item = ModelsItem(), selector=selector)
-            InfoModelsLoader.get_model()  
+            InfoModelsLoader = ModelsLoader(item = ModelsItem(),
+                                            selector=selector)
+            InfoModelsLoader.get_model(area)
+
             return InfoModelsLoader.load_item()

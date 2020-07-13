@@ -70,9 +70,10 @@ class CarBriefItem(scrapy.Item):
     offer_price = scrapy.Field()
     ID = scrapy.Field(
         output_processor=MapCompose(lambda value: url_parse.urlparse(value).path,
-                                    lambda value: re.findall('[0-9]+\-.*[^/]',value),
-                                    lambda value: value[0])
+                                    lambda value: re.findall('[0-9]+\-.*[^/]',value)
+                                    )
     )
+    IsMSK = scrapy.Field()
 
 class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
@@ -80,15 +81,6 @@ class CarLoader(ItemLoader):
     def parse_old(self):
         self.add_xpath('title', 
                            './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
-        # self.add_xpath('raw_data', 
-        #                    './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
-        # self.add_value('engine_type', 
-        #                         self.get_collected_values('raw_data'))
-        # self.add_value('horse_power', 
-        #                         self.get_collected_values('raw_data'))
-        # self.add_value('fuel_type', 
-        #                         self.get_collected_values('raw_data'))
-
         self.add_xpath('engine_type', 
                             './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('horse_power', 
@@ -160,6 +152,7 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
+        self.add_Value('')
 
 class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк
@@ -223,9 +216,9 @@ class SpiderTestItem(scrapy.Item):
     time_stamp = scrapy.Field()
     offer_price = scrapy.Field()
     ID = scrapy.Field(
-        output_processor=MapCompose(lambda value: re.split('/', value[0][::-1]),   
-                                    lambda value: value[1],
-                                    lambda value: value[::-1])
+        output_processor=MapCompose(lambda value: url_parse.urlparse(value).path,
+                                    lambda value: re.findall('[0-9]+\-.*[^/]',value)
+                                )
     )
 
 class TestLoader(ItemLoader):
@@ -241,7 +234,6 @@ class TestLoader(ItemLoader):
                             './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('fuel_type', 
                             './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
- 
         self.add_xpath('car_type', 
                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
         self.add_value('color', 'NaN')

@@ -6,4 +6,5 @@ autoruSpider/autoruSpider/*.csv
 autoruSpider/autoruSpider/*.log
 test.*
 #!test.csv
-#!brands.csv
+!brands.csv
+!all.csv
