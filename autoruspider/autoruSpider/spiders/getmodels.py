@@ -42,4 +42,5 @@ class Brands(Spider):
                                             selector=selector)
             InfoModelsLoader.get_model(area)
             self.logger.info("Added link: %s", InfoModelsLoader.get_collected_values('link'))
+            
             return InfoModelsLoader.load_item()

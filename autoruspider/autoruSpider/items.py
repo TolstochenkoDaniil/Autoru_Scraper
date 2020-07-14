@@ -11,7 +11,6 @@ from scrapy.loader.processors import MapCompose, Identity, Compose, TakeFirst
 
 import urllib.parse as url_parse
 import re
-#import datetime
     
 # def raw_field():
 #     def parse_raw_line(value):
@@ -36,18 +35,6 @@ class CarBriefItem(scrapy.Item):
         input_processor=MapCompose(lambda value: value.replace(u'\xa0', u''),
                                    lambda value: value.replace(u'км', u''))
     )
-
-    # raw_data = raw_field()
-    # engine_type = scrapy.Field(
-    #     output_processor=Compose(lambda value: value[0])
-    # )
-    # horse_power = scrapy.Field(
-    #     output_processor=Compose(lambda value: value[1])
-    # )
-    # fuel_type = scrapy.Field(
-    #     output_processor=Compose(lambda value: value[2])
-    # )
-
     engine_type = scrapy.Field(
         output_processor=MapCompose(lambda value: re.split('/', value)[0],
                                     lambda value: value.replace('л','').strip()) # text: 1.6 л / 105 л.с. / Бензин
@@ -73,7 +60,7 @@ class CarBriefItem(scrapy.Item):
                                     lambda value: re.findall('[0-9]+\-.*[^/]',value)
                                     )
     )
-    isMSK = scrapy.Field()
+    area = scrapy.Field()
 
 class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
@@ -112,7 +99,7 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-        self.add_value('isMsk', area)
+        self.add_value('area', area)
         
     def parse_new(self, area):
         self.add_xpath('title', 
@@ -143,7 +130,7 @@ class CarLoader(ItemLoader):
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-        self.add_value('isMsk', area)
+        self.add_value('area', area)
 
 class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк

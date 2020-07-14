@@ -19,7 +19,11 @@ class TestSpider(Spider):
     custom_settings = {
         'FEED_FORMAT' : 'csv',
         'FEED_URI' : 'test.csv',
-        'FEED_EXPORT_ENCODING' : 'utf-8'
+        'FEED_EXPORT_ENCODING' : 'utf-8',
+        'FEED_EXPORT_FIELDS' : ['ID','title','area','price','offer_price','year','distance',
+                      'engine_type','fuel_type','horse_power',
+                      'car_type','wheel_type','transmission',
+                      'color','city','advert','link']
         }
     
     logger = logging.getLogger('debug_info')
@@ -31,9 +35,7 @@ class TestSpider(Spider):
 
     logger.addHandler(f_handler)
 
-    def parse (self, response):
-        self.logger.info("Response url in `parse` function: %s", response.url)
-        
+    def parse (self, response):        
         next_sel = response.css('.ListingPagination-module__next::attr(href)')
         
         # Генератор для извлечения следующей страницы
@@ -48,7 +50,6 @@ class TestSpider(Spider):
 
     def parse_item(self, selector, response):
         carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)
-        self.logger.info("Response url in `parse_item` function: %s",response.url)
         area = self.parse_url(response.url)
         
         if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
