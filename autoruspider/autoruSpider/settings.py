@@ -64,9 +64,9 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'autoruSpider.pipelines.TxtWriterPipeline': 300
-#}
+ITEM_PIPELINES = {
+   'autoruSpider.pipelines.MSSQLPipeline': 500
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -89,6 +89,14 @@ ROBOTSTXT_OBEY = True
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
+# Database settings
+DB_SETTINGS = {
+    'db':'z_AUTORU',
+    'user':'tolstochenko_di',
+    'password':123,
+    'host':'192.168.2.42'
+}
+# Settings for output
 FEED_FORMAT = 'csv'
 FEED_URI = 'toyota.csv'
 FEED_EXPORT_ENCODING = 'utf-8'
