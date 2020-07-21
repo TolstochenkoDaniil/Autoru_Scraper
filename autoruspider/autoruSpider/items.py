@@ -158,7 +158,10 @@ class ModelsLoader(ItemLoader):
         self.add_value('link', params)
         self.add_css('brand','::attr(href)')
         self.add_css('model','::attr(href)')
-        
+
+
+class RecordLoader(ItemLoader):
+    pass
 # Test
 #_________________________________________________________#
 class SpiderTestItem(scrapy.Item):

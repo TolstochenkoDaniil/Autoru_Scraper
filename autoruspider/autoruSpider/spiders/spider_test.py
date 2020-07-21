@@ -16,6 +16,7 @@ class TestSpider(Spider):
     allowed_domains = ['auto.ru']
     start_urls = ['https://auto.ru/moskovskaya_oblast/cars/skoda/octavia/all/',
                   'https://auto.ru/leningradskaya_oblast/cars/skoda/octavia/all/']
+    
     custom_settings = {
         'FEED_FORMAT' : 'csv',
         'FEED_URI' : 'test.csv',
@@ -26,7 +27,7 @@ class TestSpider(Spider):
                       'color','city','advert','link']
         }
     
-    logger = logging.getLogger('debug_info')
+    logger = logging.getLogger('[DEBUG]')
 
     f_handler = logging.FileHandler('test.log', mode='w')
     f_handler.setLevel(logging.INFO)
@@ -35,18 +36,29 @@ class TestSpider(Spider):
 
     logger.addHandler(f_handler)
 
-    def parse (self, response):        
-        next_sel = response.css('.ListingPagination-module__next::attr(href)')
-        
-        # Генератор для извлечения следующей страницы
-        for next_page in next_sel.extract():
-            yield Request(url_parse.urljoin(response.url, next_page))
-            
+    def star_requests(self):
+        for url in self.start_urls:
+            yield Request(url,
+                          callback=self.parse_response,
+                          errback=self.errback_url,
+                          dont_filter=True)
+
+    def parse_response(self, response):                 
         selectors = response.xpath('//div[@class=$val]', 
                                 val="ListingItem-module__main")
         
         for selector in selectors:
             yield self.parse_item(selector, response)
+            
+        # Получение ссылки для перехода на след страницу    
+        next_sel = response.css('.ListingPagination-module__next::attr(href)')
+        
+        # Генератор для извлечения следующей страницы
+        for next_page in next_sel.extract():
+            yield Request(url_parse.urljoin(response.url, next_page),
+                          callback=self.parse_response,
+                          errback=self.errback_url,
+                          dont_filter=True)
 
     def parse_item(self, selector, response):
         carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)

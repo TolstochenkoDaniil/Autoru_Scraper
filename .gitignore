@@ -10,3 +10,4 @@ test.*
 !all.csv
 *.csv
 *.log
+.gitignore
