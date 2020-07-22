@@ -14,8 +14,7 @@ from ..items import SpiderTestItem, TestLoader, ModelsLoader, ModelsItem, CarBri
 class TestSpider(Spider):
     name = 'test'
     allowed_domains = ['auto.ru']
-    start_urls = ['https://auto.ru/moskovskaya_oblast/cars/skoda/octavia/all/',
-                  'https://auto.ru/leningradskaya_oblast/cars/skoda/octavia/all/']
+    start_urls = ['https://auto.ru/moskovskaya_oblast/cars/skoda/octavia/all/']
     
     custom_settings = {
         'FEED_FORMAT' : 'csv',
@@ -39,11 +38,11 @@ class TestSpider(Spider):
     def star_requests(self):
         for url in self.start_urls:
             yield Request(url,
-                          callback=self.parse_response,
+                          callback=self.parse,
                           errback=self.errback_url,
                           dont_filter=True)
 
-    def parse_response(self, response):                 
+    def parse(self, response):                 
         selectors = response.xpath('//div[@class=$val]', 
                                 val="ListingItem-module__main")
         
@@ -56,7 +55,7 @@ class TestSpider(Spider):
         # Генератор для извлечения следующей страницы
         for next_page in next_sel.extract():
             yield Request(url_parse.urljoin(response.url, next_page),
-                          callback=self.parse_response,
+                          callback=self.parse,
                           errback=self.errback_url,
                           dont_filter=True)
 

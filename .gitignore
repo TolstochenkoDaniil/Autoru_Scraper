@@ -2,12 +2,10 @@ crawl/
 autoruSpider/autoruSpider/__pycache__
 autoruSpider/autoruSpider/spiders/__pycache__
 autoruSpider/autoruSpider/*.csv
+*__pycache__
 .vscode
 autoruSpider/autoruSpider/*.log
 test.*
-!test.csv
-!brands.csv
-!all.csv
 *.csv
 *.log
 .gitignore
