@@ -30,7 +30,7 @@ class TestSpider(Spider):
 
     f_handler = logging.FileHandler(r'log\test.log', mode='w')
     f_handler.setLevel(logging.INFO)
-    f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)
 
     logger.addHandler(f_handler)

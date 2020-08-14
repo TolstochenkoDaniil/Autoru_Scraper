@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+import scrapy.logformatter
+
 from pathlib import WindowsPath
+import logging
 # Scrapy settings for autoruSpider project
 #
 # For simplicity, this file contains only settings considered important or
@@ -37,7 +40,7 @@ RANDOMIZE_DOWNLOAD_DELAY = True
 COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
 DEFAULT_REQUEST_HEADERS = {
@@ -61,7 +64,7 @@ DEFAULT_REQUEST_HEADERS = {
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
 EXTENSIONS = {
-   'scrapy.extensions.telnet.TelnetConsole': 1,
+   'scrapy.extensions.telnet.TelnetConsole': 0,
    'scrapy.extensions.throttle.AutoThrottle': 1
 }
 
@@ -100,6 +103,7 @@ DB_SETTINGS = {
     'host':'192.168.2.42',
     'driver':"DRIVER={SQL Server Native Client 11.0};"
 }
+
 # Settings for output
 FEED_FORMAT = 'csv'
 FEED_URI = 'toyota.csv'
@@ -109,14 +113,20 @@ FEED_EXPORT_FIELDS = ['ID','title','price','offer_price','year','distance',
                       'car_type','wheel_type','transmission',
                       'color','city','advert','link']
 FEED_STORE_EMPTY = True
+
 # Logging settings
-# LOG_ENABLED = True
-# LOG_ENCODING = 'utf-8'
-# LOG_FILE = None
-# LOG_FORMAT = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
-# LOG_DATEFORMAT = '%Y-%m-%d %H:%M:%S'
-# LOG_FORMATTER = scrapy.logformatter.LogFormatter
-# LOG_LEVEL = DEBUG
-# LOG_STOUT = False
+# logging.basicConfig(
+#     filename=r'log\error.log',
+#     format='%(asctime)s-%(levelname)s-%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
+#     level=logging.ERROR
+# )
+LOG_ENABLED = True
+LOG_ENCODING = 'utf-8'
+LOG_FILE = r'log\error.log'
+LOG_FORMAT = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+LOG_DATEFORMAT = '%Y-%m-%d %H:%M:%S'
+LOG_FORMATTER = scrapy.logformatter.LogFormatter
+LOG_LEVEL = ERROR
+LOG_STOUT = False
 # LOG_SHORT_NAMES = False
 # LOGSTATS_INTERVAL = 60.0

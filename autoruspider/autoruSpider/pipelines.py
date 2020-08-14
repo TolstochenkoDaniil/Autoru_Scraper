@@ -15,7 +15,7 @@ class DatabasePipeline(object):
 
     f_handler = logging.FileHandler(r'log\db.log', mode='w')
     f_handler.setLevel(logging.INFO)
-    f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)
 
     logger.addHandler(f_handler)
@@ -40,8 +40,6 @@ class DatabasePipeline(object):
         self.cursor = self.conn.cursor()
         
     def process_item(self,item,spider):
-        
-        
         if self.get_id(item): 
             if item['price']:
                 db_price = self.get_price(item)
