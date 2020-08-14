@@ -68,7 +68,7 @@ class TestSpider(Spider):
         self.logger.debug("Selector link is {}".format(link_sel)) 
            
         if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
-            carInfoLoader.parse_new(area)
+            pass
         else:
             carInfoLoader.parse_old(area)
             

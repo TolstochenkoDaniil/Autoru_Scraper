@@ -51,9 +51,8 @@ class DatabasePipeline(object):
             else:
                 self.add_to_prices(item,sold=True)
         else:
-            if item['distance'] != 0:
-                self.add_to_records(item)   
-                self.add_to_prices(item)
+            self.add_to_records(item)   
+            self.add_to_prices(item)
             
         return item
     
