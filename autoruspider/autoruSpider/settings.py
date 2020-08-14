@@ -67,9 +67,9 @@ EXTENSIONS = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-# ITEM_PIPELINES = {
-#    'autoruSpider.pipelines.MSSQLPipeline': 500
-# }
+ITEM_PIPELINES = {
+   'autoruSpider.pipelines.DatabasePipeline': 500
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -97,7 +97,8 @@ DB_SETTINGS = {
     'db':'z_AUTORU',
     'user':'tolstochenko_di',
     'password':123,
-    'host':'192.168.2.42'
+    'host':'192.168.2.42',
+    'driver':"DRIVER={SQL Server Native Client 11.0};"
 }
 # Settings for output
 FEED_FORMAT = 'csv'

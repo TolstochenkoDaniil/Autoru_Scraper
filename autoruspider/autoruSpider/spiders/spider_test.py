@@ -9,7 +9,7 @@ import urllib.parse as url_parse
 import re
 import pandas as pd
 
-from ..items import SpiderTestItem, TestLoader, ModelsLoader, ModelsItem, CarBriefItem, CarLoader
+from ..items import ModelsLoader, ModelsItem, CarBriefItem, CarLoader
 
 class TestSpider(Spider):
     name = 'test'
@@ -26,9 +26,9 @@ class TestSpider(Spider):
                       'color','city','advert','link']
         }
     
-    logger = logging.getLogger('[DEBUG]')
+    logger = logging.getLogger(__name__)
 
-    f_handler = logging.FileHandler('test.log', mode='w')
+    f_handler = logging.FileHandler(r'log\test.log', mode='w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     f_handler.setFormatter(f_format)
@@ -40,9 +40,10 @@ class TestSpider(Spider):
             yield Request(url,
                           callback=self.parse,
                           errback=self.errback_url,
-                          dont_filter=True)
+                          dont_filter=False)
 
-    def parse(self, response):                 
+    def parse(self, response):    
+        self.logger.info("parsing response {}".format(response.url))             
         selectors = response.xpath('//div[@class=$val]', 
                                 val="ListingItem-module__main")
         
@@ -57,16 +58,29 @@ class TestSpider(Spider):
             yield Request(url_parse.urljoin(response.url, next_page),
                           callback=self.parse,
                           errback=self.errback_url,
-                          dont_filter=True)
+                          dont_filter=False)
 
     def parse_item(self, selector, response):
         carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)
         area = self.parse_url(response.url)
         
+        link_sel = response.css(".Link.ListingItemTitle-module__link::attr(href)")
+        self.logger.debug("Selector link is {}".format(link_sel)) 
+           
         if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
             carInfoLoader.parse_new(area)
         else:
             carInfoLoader.parse_old(area)
+            
+        """ for link in link_sel:
+            inner_data = yield Request(link,
+                        callback=self.parse_inner,
+                        errback=self.errback_url,
+                        dont_filter=False)
+        
+        for data in inner_data:
+            self.logger.info("Date is: {}".format(data['date']))
+            carInfoLoader.add_value("date", data['date']) """
         
         return carInfoLoader.load_item()
     
@@ -82,6 +96,12 @@ class TestSpider(Spider):
         elif failure.check(TimeoutError, TCPTimedOutError):
             request = failure.request
             self.logger.error("TimeoutError on %s", request.url)
+    
+    def parse_inner(self, response):
+        inner = {}
+        inner['date'] = response.css(".CardHead-module__info-item::text")
+        
+        return inner
     
     def parse_url(self, url):
         url_path = url_parse.urlparse(url).path

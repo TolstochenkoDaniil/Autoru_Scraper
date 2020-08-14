@@ -6,31 +6,60 @@
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.exceptions import NotConfigured
 
+import logging
 import pyodbc as msdb
+import datetime
 
 class DatabasePipeline(object):
-    def __init__(self,db,user,password,host):
+    logger = logging.getLogger(__name__)
+
+    f_handler = logging.FileHandler(r'log\db.log', mode='w')
+    f_handler.setLevel(logging.INFO)
+    f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    f_handler.setFormatter(f_format)
+
+    logger.addHandler(f_handler)
+    
+    def __init__(self,db,user,password,host,driver):
         self.db = db
         self.user = user
         self.password = password
         self.host = host
-        
-    def process_item(self, item):
-        return item
+        self.driver = driver
+        self.conn = None
 
     def open_spider(self, spider):
-        self.conn = msdb.connect('DRIVER={ODBC DRIVER 17 for SQL Server};SERVER='+self.host+';DATABASE='+self.db+';UID='+self.user+';PWD='+self.password)
+        self.conn = msdb.connect(self.driver+'SERVER='+self.host+';DATABASE='+self.db+';UID='+self.user+';PWD='+str(self.password))
+        
+        if self.conn:
+            self.logger.info("Connection successfull.")
+        else:
+            self.logger.warning("Connection failed.")
+            self.logger.warning("DataBase settings:\nuser - {}\nhost - {}\ndb - {}".format(self.user,self.host,self.db))
+            
         self.cursor = self.conn.cursor()
         
     def process_item(self,item,spider):
-        query = 'INSERT INTO dbo.records ()'
-        self.cursor.execute(query,)
-        self.conn.commit()
         
+        
+        if self.get_id(item): 
+            if item['price']:
+                db_price = self.get_price(item)
+                
+                if item['price'] and (db_price > item['price']):
+                    self.add_to_prices(item)
+            else:
+                self.add_to_prices(item,sold=True)
+        else:
+            if item['distance'] != 0:
+                self.add_to_records(item)   
+                self.add_to_prices(item)
+            
         return item
     
     def close_spider(self, spider):
         self.conn.close()
+        self.logger.info("Connection closed.")
         
     @classmethod
     def from_crawler(cls, crawler):
@@ -43,5 +72,73 @@ class DatabasePipeline(object):
         user = db_settings['user']
         password = db_settings['password']
         host = db_settings['host']
+        driver = db_settings['driver']
         
-        return cls(db,user,password,host)
+        return cls(db,user,password,host,driver)
+    
+    def add_to_records(self, item):
+        query = f'''INSERT INTO [{self.db}].[dbo].[Records] ([ID],[Title],[Distance],[Year],
+                [Link],[Color],[Car_type],[Horse_power],[Engine_type],[Fuel_type],[Wheel_type],
+                [Transmission],[Owner],[Area])
+                VALUES
+                (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''
+        args = (item['ID'],item['title'],item['distance'],item['year'],
+                item['link'],item['color'],item['car_type'],
+                item['horse_power'],item['engine_type'],item['fuel_type'],item['wheel_type'],
+                item['transmission'],item['advert'],item['area'])
+        
+        self.cursor.execute(query,args)
+        self.conn.commit()
+        self.logger.info("Added car {}.".format(item['ID']))
+        
+    def add_to_prices(self, item, sold=False):
+        ts = datetime.date.today().isoformat()
+        
+        if sold:
+            query = f'''UPDATE [{self.db}].[dbo].[Prices]
+                    SET [DateSold] = ?
+                    WHERE [OID] = (SELECT max([OID]) from [{self.db}].[dbo].[Prices])
+                    '''
+            args = (ts)
+        else:
+            query = f'''INSERT INTO [{self.db}].[dbo].[Prices] ([Price],[DatePriceChange],[CarID])
+                    VALUES
+                    (?,?,?)
+                    '''
+            args = (item['price'],ts,item['ID'])
+        
+        self.logger.info("Added price record to {}".format(item['ID']))
+        
+        self.cursor.execute(query,args)
+        self.conn.commit()
+        
+    def get_id(self, item):
+        query = f'''SELECT [ID] 
+                FROM [{self.db}].[dbo].[Records]
+                WHERE [ID] = ?
+                '''
+        args = (item['ID'])
+        
+        self.cursor.execute(query,args)
+        row = self.cursor.fetchone()
+        
+        try:
+            return row[0]
+        except TypeError:
+            return None
+    
+    def get_price(self, item):
+        query = f'''SELECT TOP 1 [Price] 
+                FROM [{self.db}].[dbo].[Prices]
+                WHERE [CarID] = ?
+                ORDER BY [OID] DESC
+                '''
+        args = (item['ID'])
+        
+        self.cursor.execute(query,args)
+        row = self.cursor.fetchone()
+        
+        try:
+            return row[0]
+        except TypeError:
+            return None

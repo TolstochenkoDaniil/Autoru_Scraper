@@ -7,16 +7,20 @@ from twisted.internet.error import TimeoutError, TCPTimedOutError
 import urllib.parse as url_parse
 import logging
 import pandas as pd
+import os
 
 from ..items import CarBriefItem, CarLoader
 
 class AllCars(Spider):
     name = "all_cars"
     allowed_domains = ['auto.ru']
-    start_urls = list(pd.read_csv(r'C:\Users\tolstochenko.d\dev\py\Autoru_Scraper-master\Autoru_Scraper-master\autoruSpider\autoruSpider\brands.csv', 
+    if os.path.exists(r'C:\Users\tolstochenko.d\dev\py\Autoru_Scraper-master\Autoru_Scraper-master\brands.csv'):
+        start_urls = list(pd.read_csv(r'C:\Users\tolstochenko.d\dev\py\Autoru_Scraper-master\Autoru_Scraper-master\brands.csv', 
                                   sep = ',',
                                   header=0)
                       .iloc[:,2])
+    else:
+        start_urls = []
     custom_settings = {
         'FEED_FORMAT' : 'csv',
         'FEED_URI' : 'autoru.csv',
@@ -25,7 +29,7 @@ class AllCars(Spider):
     
     logger = logging.getLogger('debug_info')
 
-    f_handler = logging.FileHandler('autoru.log', mode='w')
+    f_handler = logging.FileHandler(r'log\autoru.log', mode='w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     f_handler.setFormatter(f_format)
