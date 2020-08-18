@@ -8,4 +8,10 @@ autoruSpider/autoruSpider/*.log
 test.*
 *.csv
 *.log
+settings.py
+db_test.py
+autoruSpider/build/
+autoruSpider/dbs/
+autoruSpider/eggs/
+autoruSpider/project.egg-info/
 .gitignore

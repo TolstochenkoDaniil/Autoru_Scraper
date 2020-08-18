@@ -9,11 +9,14 @@ from scrapy.exceptions import NotConfigured
 import logging
 import pyodbc as msdb
 import datetime
+import os
 
 class DatabasePipeline(object):
+    log = os.path.join(os.getcwd(),"log","db.log")
+    
     logger = logging.getLogger(__name__)
 
-    f_handler = logging.FileHandler(r'log\db.log', mode='w')
+    f_handler = logging.FileHandler(log, mode='w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)

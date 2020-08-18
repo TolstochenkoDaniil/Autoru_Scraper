@@ -7,14 +7,15 @@ from twisted.internet.error import TimeoutError, TCPTimedOutError
 import logging
 import urllib.parse as url_parse
 import re
+import os
 import pandas as pd
 
-from ..items import ModelsLoader, ModelsItem, CarBriefItem, CarLoader
+from ..items import CarBriefItem, CarLoader
 
-class TestSpider(Spider):
+class Test(Spider):
     name = 'test'
     allowed_domains = ['auto.ru']
-    start_urls = ['https://auto.ru/moskovskaya_oblast/cars/skoda/octavia/all/']
+    start_urls = ["https://auto.ru/cars/used/sale/skoda/octavia/1100052996-45b9288e/"]
     
     custom_settings = {
         'FEED_FORMAT' : 'csv',
@@ -23,7 +24,7 @@ class TestSpider(Spider):
         'FEED_EXPORT_FIELDS' : ['ID','title','area','price','offer_price','year','distance',
                       'engine_type','fuel_type','horse_power',
                       'car_type','wheel_type','transmission',
-                      'color','city','advert','link']
+                      'color','city','advert','link','date']
         }
     
     logger = logging.getLogger(__name__)
@@ -35,17 +36,17 @@ class TestSpider(Spider):
 
     logger.addHandler(f_handler)
 
-    def star_requests(self):
+    def start_requests(self):
         for url in self.start_urls:
             yield Request(url,
-                          callback=self.parse,
+                          callback=self.parse_details,
                           errback=self.errback_url,
-                          dont_filter=False)
+                          dont_filter=True)
 
     def parse(self, response):    
-        self.logger.info("parsing response {}".format(response.url))             
+        self.logger.info("Parsing response {}".format(response.url))             
         selectors = response.xpath('//div[@class=$val]', 
-                                val="ListingItem-module__main")
+                                   val="ListingItem-module__main")
         
         for selector in selectors:
             yield self.parse_item(selector, response)
@@ -58,31 +59,42 @@ class TestSpider(Spider):
             yield Request(url_parse.urljoin(response.url, next_page),
                           callback=self.parse,
                           errback=self.errback_url,
-                          dont_filter=False)
+                          dont_filter=True)
 
     def parse_item(self, selector, response):
         carInfoLoader = CarLoader(item=CarBriefItem(), selector=selector)
         area = self.parse_url(response.url)
-        
-        link_sel = response.css(".Link.ListingItemTitle-module__link::attr(href)")
-        self.logger.debug("Selector link is {}".format(link_sel)) 
            
         if selector.css('.ListingItem-module__kmAge::text').get() == 'Новый':
-            pass
+            return [None]
         else:
-            carInfoLoader.parse_old(area)
-            
-        """ for link in link_sel:
-            inner_data = yield Request(link,
-                        callback=self.parse_inner,
-                        errback=self.errback_url,
-                        dont_filter=False)
+            carInfoLoader.add_value('area', area)
+            carInfoLoader.parse_old()
         
-        for data in inner_data:
-            self.logger.info("Date is: {}".format(data['date']))
-            carInfoLoader.add_value("date", data['date']) """
+            link_ = carInfoLoader.get_collected_values('link')
+            self.logger.info("Selector link is {}".format(link_)) 
         
-        return carInfoLoader.load_item()
+            # for link in link_:
+            #     return Request(link,
+            #                   callback=self.parse_details,
+            #                   errback=self.errback_url,
+            #                   dont_filter=True
+            #                   )  
+            return carInfoLoader.load_item()
+    
+    def parse_details(self, response):
+        #carInfoLoader = CarLoader(item=item, response=response)
+        # self.logger.info("Parsing details for {}".format(carInfoLoader.get_collected_values('ID')))
+        self.logger.info("Parsing details in {}".format(response.url))
+        date = response.xpath('.//div[@class=$val]//text()',val="bKo4xb5_RtLuJ22JpWtrG__info-item")
+        
+        if date:
+            #self.logger.info("Parsed date {} for car id {}".format(date,carInfoLoader.get_collected_values('ID')))
+            self.logger.info(u"Date is {}".format(date[0].get()))
+        #carInfoLoader.add_value('date',date)
+        
+        #return carInfoLoader.load_item()
+        return date
     
     def errback_url(self, failure):
         self.logger.error(repr(failure))
@@ -96,12 +108,6 @@ class TestSpider(Spider):
         elif failure.check(TimeoutError, TCPTimedOutError):
             request = failure.request
             self.logger.error("TimeoutError on %s", request.url)
-    
-    def parse_inner(self, response):
-        inner = {}
-        inner['date'] = response.css(".CardHead-module__info-item::text")
-        
-        return inner
     
     def parse_url(self, url):
         url_path = url_parse.urlparse(url).path

@@ -1,9 +1,10 @@
 import scrapy
 from scrapy.loader import ItemLoader
-from scrapy.loader.processors import MapCompose, Identity, Compose, TakeFirst
+from itemloaders.processors import MapCompose, Identity, Compose, TakeFirst
 
 import urllib.parse as url_parse
 import re
+import datetime
     
 def serializer_int(value):
     if isinstance(value,list) and value:
@@ -15,6 +16,13 @@ def serializer_float(value):
         value = value.pop()
     return float(value)
 
+def serialize_area(value):
+    area = {"moskovskaya_oblast":"Москва",
+            "leningradskaya_oblast":"Санкт-Петербург"}
+    value = area[value]
+    
+    return value
+    
 class CarBriefItem(scrapy.Item):
     title = scrapy.Field()
     price = scrapy.Field(
@@ -64,78 +72,84 @@ class CarBriefItem(scrapy.Item):
                                 lambda value: url_parse.urlparse(value).path,
                                 lambda value: re.findall('[0-9]+\-.*[^/]',value))
     )
-    area = scrapy.Field()
+    area = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                serialize_area)
+    )
+    date = scrapy.Field()
 
 class CarLoader(ItemLoader):
     default_output_processor = TakeFirst()
     
-    def parse_old(self, area):
+    def parse_old(self):
         self.add_xpath('title', 
-                           './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
+                       './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
         self.add_xpath('engine_type', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('horse_power', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('fuel_type', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
-
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('transmission', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
         self.add_xpath('car_type', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][3]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][3]//text()')
         self.add_xpath('wheel_type', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('color', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
         self.add_xpath('city', 
-                           './/span[@class="MetroListPlace__regionName MetroListPlace_nbsp"]//text()')
+                       './/span[@class="MetroListPlace__regionName MetroListPlace_nbsp"]//text()')
         self.add_xpath('year', 
-                           './/div[@class="ListingItem-module__year"]//text()')
+                       './/div[@class="ListingItem-module__year"]//text()')
         self.add_xpath('distance', 
-                           './/div[@class="ListingItem-module__kmAge"]//text()')
+                       './/div[@class="ListingItem-module__kmAge"]//text()')
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-        self.add_value('area', area)
+        self.add_value('date', datetime.date.today().isoformat())
         self.add_css('advert',
                      '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
+        
         if not self.get_collected_values('advert'):
-            self.add_value('advert','owner')        
+            self.add_value('advert','owner')
+                    
         self.add_xpath('price', 
-                           './/div[@class="ListingItemPrice-module__content"]//text()')
+                       './/div[@class="ListingItemPrice-module__content"]//text()')
+        
         if not self.get_collected_values('price'):
             self.replace_value('price', '0')
             
-    def parse_new(self, area):
+    def parse_new(self):
         self.add_xpath('title', 
-                           './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
+                       './/h3[@class="ListingItemTitle-module__container ListingItem-module__title"]//text()')
         self.add_xpath('engine_type', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('horse_power', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('fuel_type', 
-                            './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()') 
-                              
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')        
         self.add_xpath('car_type', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][1]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
         self.add_value('color', 'NaN')
         self.add_xpath('wheel_type', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][1]//text()')
         self.add_xpath('transmission', 
-                           './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
+                       './/div[@class="ListingItemTechSummaryDesktop__column"][2]/div[@class="ListingItemTechSummaryDesktop__cell"][2]//text()')
         self.add_xpath('city', 
-                           './/span[@class="MetroListPlace__regionName MetroListPlace_nbsp"]//text()')
+                       './/span[@class="MetroListPlace__regionName MetroListPlace_nbsp"]//text()')
         self.add_xpath('year', 
-                           './/div[@class="ListingItem-module__year"]//text()')
+                       './/div[@class="ListingItem-module__year"]//text()')
         self.add_value('distance', '0')
-        self.add_css('advert', 
-                       '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
         self.add_css('link','.Link.ListingItemTitle-module__link::attr(href)')
         self.add_css('offer_price','.OfferPriceBadge::text')
         self.add_css('ID','.Link.ListingItemTitle-module__link::attr(href)')
-        self.add_value('area', area)
+        self.add_value('date', datetime.date.today().isoformat())
+        self.add_css('advert', 
+                     '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
         self.add_xpath('price', 
-                           './/div[@class="ListingItemPrice-module__content"]//text()')
+                       './/div[@class="ListingItemPrice-module__content"]//text()')
+        
         if not self.get_collected_values('price'):
             self.replace_value('price', '0')
             
