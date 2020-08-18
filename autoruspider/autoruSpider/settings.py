@@ -3,6 +3,7 @@ import scrapy.logformatter
 
 from pathlib import WindowsPath
 import logging
+import os
 # Scrapy settings for autoruSpider project
 #
 # For simplicity, this file contains only settings considered important or
@@ -17,12 +18,11 @@ BOT_NAME = 'autoruSpider'
 SPIDER_MODULES = ['autoruSpider.spiders']
 NEWSPIDER_MODULE = 'autoruSpider.spiders'
 
-LOG_LEVEL = 'INFO'
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'autoruSpider (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 CONCURRENT_REQUESTS = 8
@@ -70,9 +70,9 @@ EXTENSIONS = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-ITEM_PIPELINES = {
-   'autoruSpider.pipelines.DatabasePipeline': 500
-}
+# ITEM_PIPELINES = {
+#    'autoruSpider.pipelines.DatabasePipeline': 500
+# }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -104,29 +104,27 @@ DB_SETTINGS = {
     'driver':"DRIVER={SQL Server Native Client 11.0};"
 }
 
-# Settings for output
-FEED_FORMAT = 'csv'
-FEED_URI = 'toyota.csv'
-FEED_EXPORT_ENCODING = 'utf-8'
-FEED_EXPORT_FIELDS = ['ID','title','price','offer_price','year','distance',
-                      'engine_type','fuel_type','horse_power',
-                      'car_type','wheel_type','transmission',
-                      'color','city','advert','link']
-FEED_STORE_EMPTY = True
+# Feeds settings
+FEEDS = { 
+    'csv\\monitor.csv':{
+        'format':'csv',
+        'encoding':'utf8',
+        'store_empty':False,
+        'fields':['ID','title','area','price','offer_price',
+                    'year','distance','engine_type','fuel_type',
+                    'horse_power','car_type','wheel_type','transmission',
+                    'color','city','advert','link','date'],
+    },
+}
 
 # Logging settings
-# logging.basicConfig(
-#     filename=r'log\error.log',
-#     format='%(asctime)s-%(levelname)s-%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
-#     level=logging.ERROR
-# )
 LOG_ENABLED = True
 LOG_ENCODING = 'utf-8'
-LOG_FILE = r'log\error.log'
+LOG_FILE = os.path.join(os.getcwd(),"log","error.log")
 LOG_FORMAT = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
 LOG_DATEFORMAT = '%Y-%m-%d %H:%M:%S'
-LOG_FORMATTER = scrapy.logformatter.LogFormatter
-LOG_LEVEL = ERROR
-LOG_STOUT = False
+LOG_LEVEL = logging.ERROR
+LOG_STOUT = True
+# LOG_FORMATTER = scrapy.logformatter.LogFormatter
 # LOG_SHORT_NAMES = False
 # LOGSTATS_INTERVAL = 60.0
