@@ -47,10 +47,10 @@ class DatabasePipeline(object):
             if item['price']:
                 db_price = self.get_price(item)
                 
-                if item['price'] and (db_price > item['price']):
+                if (db_price > item['price']):
                     self.add_to_prices(item)
             else:
-                self.add_to_prices(item,sold=True)
+                self.add_to_prices(item)
         else:
             self.add_to_records(item)   
             self.add_to_prices(item)
@@ -91,21 +91,16 @@ class DatabasePipeline(object):
         self.conn.commit()
         self.logger.info("Added car {}.".format(item['ID']))
         
-    def add_to_prices(self, item, sold=False):
+    def add_to_prices(self, item):
         ts = datetime.date.today().isoformat()
-        
-        if sold:
-            query = f'''UPDATE [{self.db}].[dbo].[Prices]
-                    SET [DateSold] = ?
-                    WHERE [OID] = (SELECT max([OID]) from [{self.db}].[dbo].[Prices])
-                    '''
-            args = (ts)
-        else:
-            query = f'''INSERT INTO [{self.db}].[dbo].[Prices] ([Price],[DatePriceChange],[CarID])
-                    VALUES
-                    (?,?,?)
-                    '''
+        query = f'''INSERT INTO [{self.db}].[dbo].[Prices] ([Price],[DatePriceChange],[CarID])
+                VALUES
+                (?,?,?)
+                '''
+        if item['price']:
             args = (item['price'],ts,item['ID'])
+        else:
+            args = (0,ts,item['ID'])
         
         self.logger.info("Added price record to {}".format(item['ID']))
         
