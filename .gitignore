@@ -9,8 +9,10 @@ test.*
 crawl/
 autoruSpider/build/
 autoruSpider/project.egg-info/
-autoruSpider/autoruSpider/*.log
-autoruSpider/autoruSpider/*.csv
+autoruSpider/autoruSpider/log/
+autoruSpider/autoruSpider/logs/
+autoruSpider/autoruSpider/csv/
+autoruSpider/autoruSpider/spiders/html/
 autoruSpider/autoruSpider/spiders/dbs/
 autoruSpider/autoruSpider/spiders/eggs/
 autoruSpider/autoruSpider/__pycache__

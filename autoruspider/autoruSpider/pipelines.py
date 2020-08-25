@@ -137,3 +137,35 @@ class DatabasePipeline(object):
             return row[0]
         except TypeError:
             return None
+        
+class SpecPipeline(DatabasePipeline):
+    log = os.path.join(os.path.dirname(__file__),"spiders\\log","db.log")
+    
+    logger = logging.getLogger(__name__)
+
+    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    f_handler = logging.FileHandler(log, mode='w')
+    f_handler.setLevel(logging.INFO)
+    f_handler.setFormatter(f_format)
+
+    logger.addHandler(f_handler)
+    
+    def process_item(self, item, spider):
+        try:
+            add_to_db(item)
+        except Exception as ex:
+            self.logger.warning("Exception while adding item to database. {}".format(ex))
+        finally:
+            return item
+        
+    def add_to_db(self, item):
+        query = '''INSERT TO {self.db}.dbo.Specs ([],[],[],[],[],[],[],[],[])
+        VALUES 
+        (?,?,?,?,?,?,?,?,?,?,?,?)
+        '''
+        args = (item[''],)
+        
+        self.cursor.execute(query,args)
+        self.conn.commit()
+        
+        self.logger.info("Item {0} added to {1}".format(item[''], self.db))

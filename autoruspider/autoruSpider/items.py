@@ -179,3 +179,253 @@ class ModelsLoader(ItemLoader):
         self.add_value('link', params)
         self.add_css('brand','::attr(href)')
         self.add_css('model','::attr(href)')
+
+class SpecItem(scrapy.Item):
+    '''
+    Item model for specification spider.
+    Matches car specification from auto.ru/../specifications
+    '''
+    # modification options
+    modification = scrapy.Field()
+    volume = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('л','').strip()),
+        output_processor=serializer_float
+    )
+    fuel = scrapy.Field()
+    power = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('л.с.','').strip()),
+        output_processor=serializer_int
+    )
+    wheel_type = scrapy.Field()
+    transmission = scrapy.Field()
+    acceleration = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('с','').strip()),
+        output_processor=serializer_float
+    )
+    engine_type = scrapy.Field()
+    consumption = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('л','').strip()),
+        output_processor=serializer_float
+    )
+    
+    # common info
+    country = scrapy.Field()
+    car_class = scrapy.Field()
+    doors = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    places = scrapy.Field()
+    
+    # safety
+    safety_rating = scrapy.Field()
+    rating = scrapy.Field()
+    
+    # size
+    length = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    width = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    heigth = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    wheel_base = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    clearance = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    front_width = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    back_width = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    wheel_size = scrapy.Field()
+    
+    # volume and weight
+    trunk_volume = scrapy.Field()
+    tank_volume = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    equiped = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    full_weight = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+
+    # transmission
+    speed_num = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    
+    # suspension and brakes
+    front_suspension = scrapy.Field()
+    back_suspension = scrapy.Field()
+    front_brakes = scrapy.Field()
+    back_brakes = scrapy.Field()
+    
+    # performance indicators
+    max_speed = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    consumption_grade = scrapy.Field()
+    eco_class = scrapy.Field()
+    emissions = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+            
+    # engine
+    engine_placement = scrapy.Field()
+    engine_volume = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    boost_type = scrapy.Field()
+    max_power = scrapy.Field()
+    max_spin = scrapy.Field()
+    cylinders = scrapy.Field()
+    cylinders_num = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    cylinders_valves =scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
+    power_type = scrapy.Field()
+    compression_ratio = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_float
+    )
+    cylinder_size = scrapy.Field()  
+    
+    # miscellaneous
+    url = scrapy.Field()
+
+class SpecLoader(ItemLoader):
+    '''
+    Loader for SpecItem() object.
+    '''
+    default_output_processor = TakeFirst()
+    
+    def parse_spec(self):
+        '''
+        Function for parsing specification page on auto.ru
+        
+        All fields divide in 9 groups.
+        2 groups in the footer, 5 in the left table, 2 in the right.
+        '''
+        # car credentials
+        self.add_css('modification',".catalog__header::text")
+        
+        mod_groups = self.selector.css('.list-values.list-values_view_ext.clearfix')
+        # parse left options table
+        l_options = mod_groups[0].css('.list-values__value::text')
+        self.add_value('volume', l_options[0].get())
+        self.add_value('power', l_options[1].get())
+        self.add_value('transmission', l_options[2].get())
+        self.add_value('engine_type', l_options[3].get())
+        
+        # parse right options table
+        r_options = mod_groups[1].css('.list-values__value::text')
+        self.add_value('fuel', r_options[0].get())
+        self.add_value('wheel_type', r_options[1].get())
+        self.add_value('acceleration', r_options[2].get())
+        self.add_value('consumption', r_options[3].get())
+
+        # parse left table
+        groups = self.selector.css('.catalog__details-group')
+        
+        # common info
+        cm_options = groups[0].css('.list-values__value::text')
+        self.add_value('country', cm_options[0].get())
+        self.add_value('car_class', cm_options[1].get())
+        self.add_value('doors', cm_options[2].get())
+        self.add_value('places', cm_options[3].get())
+        
+        # safety
+        sa_options = groups[1].css('.list-values__value::text')
+        self.add_value('safety_rating', sa_options[0].get())
+        self.add_value('rating', sa_options[1].get())
+        
+        # size
+        sz_options = groups[2].css('.list-values__value::text')
+        self.add_value('length', sz_options[0].get())
+        self.add_value('width', sz_options[1].get())
+        self.add_value('heigth', sz_options[2].get())
+        self.add_value('wheel_base', sz_options[3].get())
+        self.add_value('clearance', sz_options[4].get())
+        self.add_value('front_width',sz_options[5].get())
+        self.add_value('back_width',sz_options[6].get())
+        self.add_value('wheel_size', sz_options[7].get())
+        
+        # volume & weight
+        vw_options = groups[3].css('.list-values__value::text')
+        self.add_value('trunk_volume', vw_options[0].get())
+        self.add_value('tank_volume', vw_options[1].get())
+        self.add_value('equiped', vw_options[2].get())
+        self.add_value('full_weight', vw_options[3].get())
+        
+        # transmission
+        tr_options = groups[4].css('.list-values__value::text')
+        self.add_value('speed_num', tr_options[1].get())
+        
+        # suspension & brakes
+        sb_options = groups[5].css('.list-values__value::text')
+        self.add_value('front_suspension', sb_options[0].get())
+        self.add_value('back_suspension', sb_options[1].get())
+        self.add_value('front_brakes', sb_options[2].get())
+        self.add_value('back_brakes', sb_options[3].get())
+        
+        # parse right table
+        # performance indicators
+        pi_options = groups[6].css('.list-values__value::text')
+        self.add_value('max_speed', pi_options[0].get())
+        self.add_value('consumption_grade', pi_options[2].get())
+        self.add_value('eco_class', pi_options[4].get())
+        self.add_value('emissions', pi_options[5].get())
+        
+        # engine
+        en_options = groups[7].css('.list-values__value::text')
+        self.add_value('engine_placement', en_options[1].get())
+        self.add_value('engine_volume', en_options[2].get())
+        self.add_value('boost_type', en_options[3].get())
+        self.add_value('max_power', en_options[4].get())
+        self.add_value('max_spin', en_options[5].get())
+        self.add_value('cylinders', en_options[6].get())
+        self.add_value('cylinders_num', en_options[7].get())
+        self.add_value('cylinders_valves', en_options[8].get())
+        
+        # Disel cars do not have 'power_type'
+        if self.get_collected_values('fuel')[0] != "ДТ":
+            self.add_value('power_type', en_options[9].get())
+            self.add_value('compression_ratio', en_options[10].get())
+            self.add_value('cylinder_size', en_options[11].get())
+        else:
+            self.add_value('power_type', '-')
+            self.add_value('compression_ratio', en_options[9].get())
+            self.add_value('cylinder_size', en_options[10].get())
+            
+        # Url
+        self.add_value('url', self.selector.url)
