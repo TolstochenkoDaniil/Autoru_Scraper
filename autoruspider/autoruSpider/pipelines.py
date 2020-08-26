@@ -5,6 +5,7 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.exceptions import NotConfigured
+from scrapy.pipelines.images import ImagesPipeline
 
 import logging
 import pyodbc as msdb
@@ -139,7 +140,7 @@ class DatabasePipeline(object):
             return None
         
 class SpecPipeline(DatabasePipeline):
-    log = os.path.join(os.path.dirname(__file__),"spiders\\log","db.log")
+    log = os.path.join(os.path.dirname(__file__),"spiders\\log","spec.log")
     
     logger = logging.getLogger(__name__)
 
@@ -157,15 +158,114 @@ class SpecPipeline(DatabasePipeline):
             self.logger.warning("Exception while adding item to database. {}".format(ex))
         finally:
             return item
+    
+    def __init__(self,db,user,password,host,driver):
+        self.db = db
+        self.user = user
+        self.password = password
+        self.host = host
+        self.driver = driver
+        self.conn = None
         
+    def open_spider(self, spider):
+        self.conn = msdb.connect(self.driver+'SERVER='+self.host+';DATABASE='+self.db+';UID='+self.user+';PWD='+str(self.password))
+            
+        if self.conn:
+            self.logger.info("Connection successfull.")
+        else:
+            self.logger.warning("Connection failed.")
+            self.logger.warning("DataBase settings:\nuser - {}\nhost - {}\ndb - {}".format(self.user,self.host,self.db))
+                
+            self.cursor = self.conn.cursor()
+        
+    def close_spider(self, spider):
+        self.conn.close()
+        self.logger.info("Connection closed.")
+            
+    @classmethod
+    def from_crawler(cls, crawler):
+        db_settings = crawler.settings.getdict("DB_SETTINGS")
+                
+        if not db_settings:
+            raise NotConfigured
+                
+        db = db_settings['db']
+        user = db_settings['user']
+        password = db_settings['password']
+        host = db_settings['host']
+        driver = db_settings['driver']
+                
+        return cls(db,user,password,host,driver)  
+    
+    def process_item(self, item, spider):
+        try:
+            add_to_db(item)
+        except Exception as ex:
+            self.logger.warning("Exception while adding item to database. {}".format(ex))
+        finally:
+            return item
+          
     def add_to_db(self, item):
-        query = '''INSERT TO {self.db}.dbo.Specs ([],[],[],[],[],[],[],[],[])
+        query = '''INSERT TO {self.db}.dbo.Specs (
+        [Brand],[Model],[Generation],[Modification],
+        [Volume],[Power],[Transmission],[Engine_type],
+        [Fuel],[Wheel_type],[Acceleration],[Consumption],
+        [Country],[Car_class],[Doors],[Seats],
+        [Safety_rating],[Rating],
+        [Length],[Width],[Heigth],[Wheel_base],[Clearance],[Front_width],[Back_width],[Wheel_size],
+        [Trunk_size],[Tank_volume],[Equiped],[Full_weight],
+        [Speed_num],
+        [Front_suspension],[Back_suspension],[Front_brakes],[Back_brakes],
+        [Max_speed],[Consumption_grade],[Eco_class],[Emission],
+        [Engine_placement],[Boost_type],[Max_power],[Max_spin],
+        [Cylinders],[Cylinders_num],[Cylinders_valves],[Cylinder_size],
+        [Compression_ratio],[Power_type],
+        [Url]
+        )
         VALUES 
-        (?,?,?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,
+        ?,?,?,?,
+        ?,?,?,?,
+        ?,?,?,?,
+        ?,?
+        ?,?,?,?,?,?,?,?,
+        ?,
+        ?,?,?,?,
+        ?,?,?,?,
+        ?,?,?,?,
+        ?,?,?,?,
+        ?,?,
+        ?)
         '''
-        args = (item[''],)
+        args = (item['brand'],item['model'],item['generation'],item['modification'],
+                item['volume'],item['power'],item['transmission'],item['engine_type'],
+                item['fuel'],item['wheel_type'],item['acceleration'],item['consumption'],
+                item['country'],item['car_class'],item['doors'],item['seats'],
+                item['safety_rating'],item['rating'],
+                item['length'],item['width'],item['heigth'],item['wheel_base'],item['clearance'],item['front_width'],item['back_width'],item['wheel_size'],
+                item['trunk_size'],item['tank_volume'],item['equiped'],item['full_weight'],
+                item['speed_num'],
+                item['front_suspention'],item['back_suspention'],item['front_brakes'],item['back_brakes'],
+                item['max_speed'],item['consumption_grade'],item['eco_class'],item['emission'],
+                item['engine_placement'],item['boost_type'],item['max_power'],item['max_spin'],
+                item['cylinders'],item['cylinders_num'],item['cylinders_valves'],item['cylinders_size'],
+                item['compression_ratio'],item['power_type'],
+                item['url'])
         
         self.cursor.execute(query,args)
         self.conn.commit()
         
-        self.logger.info("Item {0} added to {1}".format(item[''], self.db))
+        self.logger.info("Item {0} - {1} - {2} - {3} added to {4}".format(item['brand'],
+                                                                          item['model'],
+                                                                          item['generation'],
+                                                                          item['modification'],
+                                                                          self.db))
+        
+class SpecImagesPipeline(ImagesPipeline):
+    
+    def get_media_request(self, item, info):
+        for image_url in item['image_urls']:
+            yield Request(image_url)
+            
+    def item_completed(self, results, item, info):
+        return item

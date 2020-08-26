@@ -5,6 +5,7 @@ from itemloaders.processors import MapCompose, Identity, Compose, TakeFirst
 import urllib.parse as url_parse
 import re
 import datetime
+import json
     
 def serializer_int(value):
     if isinstance(value,list) and value:
@@ -185,8 +186,13 @@ class SpecItem(scrapy.Item):
     Item model for specification spider.
     Matches car specification from auto.ru/../specifications
     '''
-    # modification options
+    # car credentials
     modification = scrapy.Field()
+    brand = scrapy.Field()
+    model = scrapy.Field()
+    generation = scrapy.Field()
+    
+    # modification options
     volume = scrapy.Field(
         input_processor=Compose(TakeFirst(),
                                 lambda value: value.replace('л','').strip()),
@@ -219,7 +225,7 @@ class SpecItem(scrapy.Item):
         input_processor=TakeFirst(),
         output_processor=serializer_int
     )
-    places = scrapy.Field()
+    seats = scrapy.Field()
     
     # safety
     safety_rating = scrapy.Field()
@@ -309,7 +315,7 @@ class SpecItem(scrapy.Item):
         input_processor=TakeFirst(),
         output_processor=serializer_int
     )
-    cylinders_valves =scrapy.Field(
+    cylinders_valves = scrapy.Field(
         input_processor=TakeFirst(),
         output_processor=serializer_int
     )
@@ -338,6 +344,9 @@ class SpecLoader(ItemLoader):
         '''
         # car credentials
         self.add_css('modification',".catalog__header::text")
+        self.add_css('brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem.link_js_inited::text')
+        self.add_value('model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem.link_js_inited::text')
+        self.add_value('generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem.link_js_inited::text')
         
         mod_groups = self.selector.css('.list-values.list-values_view_ext.clearfix')
         # parse left options table
@@ -362,7 +371,7 @@ class SpecLoader(ItemLoader):
         self.add_value('country', cm_options[0].get())
         self.add_value('car_class', cm_options[1].get())
         self.add_value('doors', cm_options[2].get())
-        self.add_value('places', cm_options[3].get())
+        self.add_value('seats', cm_options[3].get())
         
         # safety
         sa_options = groups[1].css('.list-values__value::text')
@@ -417,7 +426,7 @@ class SpecLoader(ItemLoader):
         self.add_value('cylinders_num', en_options[7].get())
         self.add_value('cylinders_valves', en_options[8].get())
         
-        # Disel cars do not have 'power_type'
+        # disel cars do not have 'power_type'
         if self.get_collected_values('fuel')[0] != "ДТ":
             self.add_value('power_type', en_options[9].get())
             self.add_value('compression_ratio', en_options[10].get())
@@ -426,6 +435,38 @@ class SpecLoader(ItemLoader):
             self.add_value('power_type', '-')
             self.add_value('compression_ratio', en_options[9].get())
             self.add_value('cylinder_size', en_options[10].get())
-            
-        # Url
-        self.add_value('url', self.selector.url)
+    
+    def add_url(self, url):
+        self.add_value('url', url)
+        
+class ImageItem(scrapy.Item):
+    '''
+    Item class for storing images with car credentials.
+    '''
+    _brand = scrapy.Field()
+    _model = scrapy.Field()
+    _generation = scrapy.Field()
+    
+    image_urls = scrapy.Field()
+    image = scrapy.Field()
+    
+class ImageLoader(ItemLoader):
+    '''
+    Loader for ImageItem() object.
+    '''
+    # default_output_processor = TakeFirst()
+    
+    def parse_img(self):
+        '''
+        Function for extracting images for auto.ru/../specification url.
+        '''
+        # add image urlsas json
+        img = json.loads(str(self.selector.css('.photo-gallery.model-gallery.i-bem::attr(data-bem)').get()))
+        img_urls = list(''.join(('https:',url['thumb'])) for url in img['photo-gallery']['photos'])
+        self.add_value('image_urls',img_urls)
+        
+        # add credentials
+        self.add_css('_brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem.link_js_inited::text')
+        self.add_css('_model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem.link_js_inited::text')
+        self.add_css('_generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem.link_js_inited::text')
+        
