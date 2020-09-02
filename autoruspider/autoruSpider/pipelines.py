@@ -149,13 +149,12 @@ class SpecPipeline(DatabasePipeline):
     def process_item(self, item, spider):
         try:
             if hasattr(spider, 'OID'):
-                print("OID is passed.")
-            if '_brand' in item:
-                self.add_img_to_db(spider)
-            if 'brand' in item:
-                self.add_to_db(item, spider)
+                if '_brand' in item:
+                    self.add_img_to_db(spider)
+                if 'brand' in item:
+                    self.add_to_db(item, spider)
         except Exception as ex:
-            self.logger.warning("Exception occured while adding item to database.\n {}".format(ex))
+            self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex))
         finally:
             return item 
           
@@ -215,18 +214,18 @@ class SpecPipeline(DatabasePipeline):
                                                                           item['modification'],
                                                                           self.db))
         
-        def add_img_to_db(self, spider):
-            query = '''INSERT TO {self.db}.[].[] ([ImgPath],[CarOID])
-            VALUES
-            (?,?)
-            '''
-            args = (spider.path,spider.OID)
+    def add_img_to_db(self, spider):
+        query = '''INSERT TO {self.db}.[].[] ([ImgPath],[CarOID])
+        VALUES
+        (?,?)
+        '''
+        args = (spider.path,spider.OID)
             
 class SpecImagesPipeline(ImagesPipeline):
     '''
         PipeLine for processing ImageItems produced by `specification` spider.
     '''
-    log = os.path.join(os.getcwd(),"log","img.log")
+    log = os.path.join(os.path.dirname(__file__),"spiders\\log","img.log")
     
     logger = logging.getLogger(__name__)
 
@@ -238,12 +237,12 @@ class SpecImagesPipeline(ImagesPipeline):
     logger.addHandler(f_handler)
     
     def __init__(self, store_uri, download_func=None, settings=None):
-        super().__init__(store_uri, download_func=download_func, settings=settings)
+        super(SpecImagesPipeline, self).__init__(store_uri, download_func=download_func, settings=settings)
         # custom path variable
         self.path = None
     
-    def get_media_requests(self, item, info):
-        self.get_path(item, info)
+    def get_media_requests(self, item, info):     
+        self.path = info.spider.path   
         
         urls = ItemAdapter(item).get(self.images_urls_field, [])
         requests = [Request(u) for u in urls]
@@ -253,12 +252,15 @@ class SpecImagesPipeline(ImagesPipeline):
         image_guid = hashlib.sha1(to_bytes(request.url)).hexdigest()
         
         if self.path:
-            return "{}/{}.jpg".format(self.path, image_guid)
+            return "{}\\{}.jpg".format(self.path, image_guid)
         else:
             return "full/%s.jpg".format(image_guid)
     
     def get_path(self, item, info):
         '''
+            WARNING: Method is deprecated. 
+            Now `path` param attaches to spider during initialize process.
+            
             Function to generate IMAGES_STORE path dynamically.\n
             @param: item, processed in the pipeline
             
@@ -266,7 +268,7 @@ class SpecImagesPipeline(ImagesPipeline):
             where item is passed.
         '''
         if info.spider.path and os.path.exists(info.spider.path):
-            path = os.path.join(info.spider.path,info.spider.OID)
+            path = os.path.join(info.spider.path,str(info.spider.OID))
             os.mkdir(path)
             
             return self.path
@@ -279,7 +281,7 @@ class SpecImagesPipeline(ImagesPipeline):
                                 item['_car_type']))
                 
             except Exception as ex:
-                self.logger.warn("Exception accured while generating image store path. {}".format(ex))
+                self.logger.warn("Exception occurred while generating image store path. {}".format(ex))
                 self.logger.warn("Image store path set to default value '{}\\full\\'.".format(info.spider.settings['IMAGES_STORE']))
             finally:
                 return self.path

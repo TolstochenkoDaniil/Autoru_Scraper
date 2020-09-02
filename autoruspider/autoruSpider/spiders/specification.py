@@ -36,8 +36,8 @@ class SpecificationSpider(CrawlSpider):
 
     custom_settings = {
         'ITEM_PIPELINES':{
-            'autoruSpider.pipelines.SpecPipeline':300,
-            'autoruSpider.pipelines.SpecImagesPipeline':None,
+            'autoruSpider.pipelines.SpecPipeline':None,
+            'autoruSpider.pipelines.SpecImagesPipeline':300,
             'scrapy.pipelines.images.ImagesPipeline':None,
         },
         'FEEDS':{
@@ -88,8 +88,10 @@ class SpecificationSpider(CrawlSpider):
             self.path = None
         else:
             self.OID = OID
-            self.path = r"\\{}\{}".format(socket.gethostname(),
-                                          self.__class__.settings['IMAGES_STORE'])
+            if os.path.exists(self.custom_settings['IMAGES_STORE']):
+                self.path = r"{}\{}".format(self.custom_settings['IMAGES_STORE'],
+                                            self.OID)
+            
         self.start_urls.append(target)
         
         if self.start_urls is None:
