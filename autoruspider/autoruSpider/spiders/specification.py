@@ -10,6 +10,7 @@ from scrapy_selenium import SeleniumRequest
 import logging
 import os
 import json
+import socket
 
 from ..items import SpecLoader, SpecItem, ImageItem, ImageLoader, QutoLoader, QutoItem
 
@@ -18,7 +19,7 @@ class SpecificationSpider(CrawlSpider):
         Spider for crawling cars specifications from auto.ru.
 
         @param: - url for specific model.\n
-        @return: - car specification in database.
+        @return: - car specification in database.\n
         @return: - images for specific car(brand,model,generation).
     '''
     name = "specification"
@@ -35,8 +36,8 @@ class SpecificationSpider(CrawlSpider):
 
     custom_settings = {
         'ITEM_PIPELINES':{
-            'autoruSpider.pipelines.SpecPipeline':None,
-            'autoruSpider.pipelines.SpecImagesPipeline':300,
+            'autoruSpider.pipelines.SpecPipeline':300,
+            'autoruSpider.pipelines.SpecImagesPipeline':None,
             'scrapy.pipelines.images.ImagesPipeline':None,
         },
         'FEEDS':{
@@ -72,15 +73,25 @@ class SpecificationSpider(CrawlSpider):
         Rule(LinkExtractor(allow=('specifications/[0-9_]+/'), tags=('a'), attrs=('href',), unique=True), callback='parse_spec', follow=True)
     )
 
-    def __init__(self, target=None, *args, **kwargs):
+    def __init__(self, target=None, OID=None, *args, **kwargs):
         '''
             Custom init function to pass parameters to spider.
 
-            @input: - start url(s) to begin crawling with.
+            @param: url - start url(s) to begin crawling with.
+            @param: OID identifier for selection car entities in database.
         '''
         super().__init__(*args,**kwargs)
 
+        if not OID:
+            self.logger.warning("OID parameter is empty. Provide correct value to the spider.")
+            self.logger.warning("Files would be saved locally.")
+            self.path = None
+        else:
+            self.OID = OID
+            self.path = r"\\{}\{}".format(socket.gethostname(),
+                                          self.__class__.settings['IMAGES_STORE'])
         self.start_urls.append(target)
+        
         if self.start_urls is None:
             self.logger.warning("No url provided to the spider.")
     

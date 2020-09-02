@@ -10,6 +10,7 @@ import hashlib
 import logging
 import datetime
 import pyodbc as msdb
+import socket
 from io import BytesIO
 
 class DatabasePipeline(object):
@@ -143,18 +144,23 @@ class SpecPipeline(DatabasePipeline):
     '''
         PipeLine for processing SpecItems produced by `specification` spider.
     '''
-    log = os.path.join(os.path.dirname(__file__),"spiders\\log","spec.log")
-    
+    log = os.path.join(os.path.dirname(__file__),"spiders\\log","spec_db.log")
+        
     def process_item(self, item, spider):
         try:
-            add_to_db(item)
+            if hasattr(spider, 'OID'):
+                print("OID is passed.")
+            if '_brand' in item:
+                self.add_img_to_db(spider)
+            if 'brand' in item:
+                self.add_to_db(item, spider)
         except Exception as ex:
-            self.logger.warning("Exception while adding item to database. {}".format(ex))
+            self.logger.warning("Exception occured while adding item to database.\n {}".format(ex))
         finally:
             return item 
           
-    def add_to_db(self, item):
-        query = '''INSERT TO {self.db}.dbo.Specs (
+    def add_to_db(self, item, spider):
+        query = '''INSERT TO {self.db}.[].[] (
         [Brand],[Model],[Generation],[Modification],
         [Volume],[Power],[Transmission],[Engine_type],
         [Fuel],[Wheel_type],[Acceleration],[Consumption],
@@ -171,7 +177,7 @@ class SpecPipeline(DatabasePipeline):
         [Url]
         )
         VALUES 
-        (?,?,?,?,
+        (?,?,?,?,?,
         ?,?,?,?,
         ?,?,?,?,
         ?,?,?,?,
@@ -185,7 +191,7 @@ class SpecPipeline(DatabasePipeline):
         ?,?,
         ?)
         '''
-        args = (item['brand'],item['model'],item['generation'],item['modification'],
+        args = (item['brand'],item['model'],item['generation'],item['modification'],item['car_type'],
                 item['volume'],item['power'],item['transmission'],item['engine_type'],
                 item['fuel'],item['wheel_type'],item['acceleration'],item['consumption'],
                 item['country'],item['car_class'],item['doors'],item['seats'],
@@ -209,6 +215,13 @@ class SpecPipeline(DatabasePipeline):
                                                                           item['modification'],
                                                                           self.db))
         
+        def add_img_to_db(self, spider):
+            query = '''INSERT TO {self.db}.[].[] ([ImgPath],[CarOID])
+            VALUES
+            (?,?)
+            '''
+            args = (spider.path,spider.OID)
+            
 class SpecImagesPipeline(ImagesPipeline):
     '''
         PipeLine for processing ImageItems produced by `specification` spider.
@@ -252,15 +265,21 @@ class SpecImagesPipeline(ImagesPipeline):
             HINT: Call this function in any overridable ImagePipeline interface,
             where item is passed.
         '''
-        
-        try:
-            self.path = '/'.join((item['_brand'],
-                            item['_model'],
-                            item['_generation'][0],
-                            item['_car_type']))
+        if info.spider.path and os.path.exists(info.spider.path):
+            path = os.path.join(info.spider.path,info.spider.OID)
+            os.mkdir(path)
             
-        except Exception as ex:
-            self.logger.warn("Exception accured while generating image store path. {}".format(ex))
-            self.logger.warn("Image store path set to default value '{}\\full\\'.".format(info.spider.settings['IMAGES_STORE']))
-        finally:
             return self.path
+        
+        elif '_brand' in item:
+            try:
+                self.path = '/'.join((item['_brand'],
+                                item['_model'],
+                                item['_generation'][0],
+                                item['_car_type']))
+                
+            except Exception as ex:
+                self.logger.warn("Exception accured while generating image store path. {}".format(ex))
+                self.logger.warn("Image store path set to default value '{}\\full\\'.".format(info.spider.settings['IMAGES_STORE']))
+            finally:
+                return self.path
