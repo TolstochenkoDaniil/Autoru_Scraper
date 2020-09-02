@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.exceptions import NotConfigured
 from scrapy.pipelines.images import ImagesPipeline
+from scrapy.utils.python import to_bytes
+from itemadapter import ItemAdapter
+from scrapy.http import Request
 
-import logging
-import pyodbc as msdb
-import datetime
 import os
+import hashlib
+import logging
+import datetime
+import pyodbc as msdb
+from io import BytesIO
 
 class DatabasePipeline(object):
     log = os.path.join(os.getcwd(),"log","db.log")
@@ -140,70 +140,18 @@ class DatabasePipeline(object):
             return None
         
 class SpecPipeline(DatabasePipeline):
+    '''
+        PipeLine for processing SpecItems produced by `specification` spider.
+    '''
     log = os.path.join(os.path.dirname(__file__),"spiders\\log","spec.log")
     
-    logger = logging.getLogger(__name__)
-
-    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    f_handler = logging.FileHandler(log, mode='w')
-    f_handler.setLevel(logging.INFO)
-    f_handler.setFormatter(f_format)
-
-    logger.addHandler(f_handler)
-    
     def process_item(self, item, spider):
         try:
             add_to_db(item)
         except Exception as ex:
             self.logger.warning("Exception while adding item to database. {}".format(ex))
         finally:
-            return item
-    
-    def __init__(self,db,user,password,host,driver):
-        self.db = db
-        self.user = user
-        self.password = password
-        self.host = host
-        self.driver = driver
-        self.conn = None
-        
-    def open_spider(self, spider):
-        self.conn = msdb.connect(self.driver+'SERVER='+self.host+';DATABASE='+self.db+';UID='+self.user+';PWD='+str(self.password))
-            
-        if self.conn:
-            self.logger.info("Connection successfull.")
-        else:
-            self.logger.warning("Connection failed.")
-            self.logger.warning("DataBase settings:\nuser - {}\nhost - {}\ndb - {}".format(self.user,self.host,self.db))
-                
-            self.cursor = self.conn.cursor()
-        
-    def close_spider(self, spider):
-        self.conn.close()
-        self.logger.info("Connection closed.")
-            
-    @classmethod
-    def from_crawler(cls, crawler):
-        db_settings = crawler.settings.getdict("DB_SETTINGS")
-                
-        if not db_settings:
-            raise NotConfigured
-                
-        db = db_settings['db']
-        user = db_settings['user']
-        password = db_settings['password']
-        host = db_settings['host']
-        driver = db_settings['driver']
-                
-        return cls(db,user,password,host,driver)  
-    
-    def process_item(self, item, spider):
-        try:
-            add_to_db(item)
-        except Exception as ex:
-            self.logger.warning("Exception while adding item to database. {}".format(ex))
-        finally:
-            return item
+            return item 
           
     def add_to_db(self, item):
         query = '''INSERT TO {self.db}.dbo.Specs (
@@ -262,10 +210,57 @@ class SpecPipeline(DatabasePipeline):
                                                                           self.db))
         
 class SpecImagesPipeline(ImagesPipeline):
+    '''
+        PipeLine for processing ImageItems produced by `specification` spider.
+    '''
+    log = os.path.join(os.getcwd(),"log","img.log")
     
-    def get_media_request(self, item, info):
-        for image_url in item['image_urls']:
-            yield Request(image_url)
+    logger = logging.getLogger(__name__)
+
+    f_handler = logging.FileHandler(log, mode='w')
+    f_handler.setLevel(logging.INFO)
+    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    f_handler.setFormatter(f_format)
+
+    logger.addHandler(f_handler)
+    
+    def __init__(self, store_uri, download_func=None, settings=None):
+        super().__init__(store_uri, download_func=download_func, settings=settings)
+        # custom path variable
+        self.path = None
+    
+    def get_media_requests(self, item, info):
+        self.get_path(item, info)
+        
+        urls = ItemAdapter(item).get(self.images_urls_field, [])
+        requests = [Request(u) for u in urls]
+        return requests
+    
+    def file_path(self, request, response=None, info=None):
+        image_guid = hashlib.sha1(to_bytes(request.url)).hexdigest()
+        
+        if self.path:
+            return "{}/{}.jpg".format(self.path, image_guid)
+        else:
+            return "full/%s.jpg".format(image_guid)
+    
+    def get_path(self, item, info):
+        '''
+            Function to generate IMAGES_STORE path dynamically.\n
+            @param: item, processed in the pipeline
             
-    def item_completed(self, results, item, info):
-        return item
+            HINT: Call this function in any overridable ImagePipeline interface,
+            where item is passed.
+        '''
+        
+        try:
+            self.path = '/'.join((item['_brand'],
+                            item['_model'],
+                            item['_generation'][0],
+                            item['_car_type']))
+            
+        except Exception as ex:
+            self.logger.warn("Exception accured while generating image store path. {}".format(ex))
+            self.logger.warn("Image store path set to default value '{}\\full\\'.".format(info.spider.settings['IMAGES_STORE']))
+        finally:
+            return self.path

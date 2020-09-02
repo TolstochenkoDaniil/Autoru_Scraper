@@ -183,14 +183,24 @@ class ModelsLoader(ItemLoader):
 
 class SpecItem(scrapy.Item):
     '''
-    Item model for specification spider.
-    Matches car specification from auto.ru/../specifications
+        Item model for `specification` spider.
+        Matches car specification from auto.ru/../specifications
     '''
     # car credentials
-    modification = scrapy.Field()
-    brand = scrapy.Field()
-    model = scrapy.Field()
+    modification = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.replace('Модификация ', ''))
+    )
+    brand = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
+    model = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
     generation = scrapy.Field()
+    car_type = scrapy.Field()
     
     # modification options
     volume = scrapy.Field(
@@ -227,10 +237,14 @@ class SpecItem(scrapy.Item):
     )
     seats = scrapy.Field()
     
+    """ 
+    Deprecated.
+    
     # safety
     safety_rating = scrapy.Field()
     rating = scrapy.Field()
-    
+     """
+     
     # size
     length = scrapy.Field(
         input_processor=TakeFirst(),
@@ -305,7 +319,7 @@ class SpecItem(scrapy.Item):
     engine_placement = scrapy.Field()
     engine_volume = scrapy.Field(
         input_processor=TakeFirst(),
-        output_processor=serializer_int
+        output_processor=serializer_float
     )
     boost_type = scrapy.Field()
     max_power = scrapy.Field()
@@ -331,22 +345,27 @@ class SpecItem(scrapy.Item):
 
 class SpecLoader(ItemLoader):
     '''
-    Loader for SpecItem() object.
+        Loader for `SpecItem()` object.
     '''
     default_output_processor = TakeFirst()
     
-    def parse_spec(self):
+    def parse_spec(self, url=None):
         '''
-        Function for parsing specification page on auto.ru
-        
-        All fields divide in 9 groups.
-        2 groups in the footer, 5 in the left table, 2 in the right.
+            Function for parsing specification page on auto.ru
+            
+            All fields divide in 9 groups.
+            2 groups in the footer, 5 in the left table, 2 in the right.
+            
+            @param: keyword argument `url` is response.url parameter.
+                    it gives access to the url inside Loader.
         '''
         # car credentials
         self.add_css('modification',".catalog__header::text")
-        self.add_css('brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem.link_js_inited::text')
-        self.add_value('model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem.link_js_inited::text')
-        self.add_value('generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem.link_js_inited::text')
+        self.add_css('brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem::text')
+        self.add_css('model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem::text')
+        self.add_css('generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem::text')
+        car_type = json.loads(self.selector.css('.sale-data-attributes.sale-data-attributes_hidden.i-bem::attr(data-bem)').getall().pop())
+        self.add_value('car_type',car_type['sale-data-attributes']['type'])
         
         mod_groups = self.selector.css('.list-values.list-values_view_ext.clearfix')
         # parse left options table
@@ -358,14 +377,25 @@ class SpecLoader(ItemLoader):
         
         # parse right options table
         r_options = mod_groups[1].css('.list-values__value::text')
-        self.add_value('fuel', r_options[0].get())
-        self.add_value('wheel_type', r_options[1].get())
-        self.add_value('acceleration', r_options[2].get())
-        self.add_value('consumption', r_options[3].get())
+        if len(r_options) > 3:
+            self.add_value('fuel', r_options[0].get())
+            self.add_value('wheel_type', r_options[1].get())
+            self.add_value('acceleration', r_options[2].get())
+            self.add_value('consumption', r_options[3].get())
+        else:
+            self.add_value('fuel', r_options[0].get())
+            self.add_value('wheel_type', r_options[1].get())
+            self.add_value('consumption', r_options[2].get())
 
-        # parse left table
+        # option groups
+        # value from 7 to 8
         groups = self.selector.css('.catalog__details-group')
         
+        if len(groups) > 7:
+            # remove second option section (`safety`)
+            groups.pop(1)
+        
+        # parse left table
         # common info
         cm_options = groups[0].css('.list-values__value::text')
         self.add_value('country', cm_options[0].get())
@@ -373,13 +403,18 @@ class SpecLoader(ItemLoader):
         self.add_value('doors', cm_options[2].get())
         self.add_value('seats', cm_options[3].get())
         
+        """ 
+        Deprecated.
+        This section appears not in every specification
+        
         # safety
         sa_options = groups[1].css('.list-values__value::text')
         self.add_value('safety_rating', sa_options[0].get())
         self.add_value('rating', sa_options[1].get())
-        
+         """
+         
         # size
-        sz_options = groups[2].css('.list-values__value::text')
+        sz_options = groups[1].css('.list-values__value::text')
         self.add_value('length', sz_options[0].get())
         self.add_value('width', sz_options[1].get())
         self.add_value('heigth', sz_options[2].get())
@@ -390,18 +425,20 @@ class SpecLoader(ItemLoader):
         self.add_value('wheel_size', sz_options[7].get())
         
         # volume & weight
-        vw_options = groups[3].css('.list-values__value::text')
+        vw_options = groups[2].css('.list-values__value::text')
         self.add_value('trunk_volume', vw_options[0].get())
         self.add_value('tank_volume', vw_options[1].get())
         self.add_value('equiped', vw_options[2].get())
         self.add_value('full_weight', vw_options[3].get())
         
         # transmission
-        tr_options = groups[4].css('.list-values__value::text')
-        self.add_value('speed_num', tr_options[1].get())
+        tr_options = groups[3].css('.list-values__value::text')
+        if len(tr_options) == 3:
+            self.add_value('speed_num', tr_options[1].get())
+        
         
         # suspension & brakes
-        sb_options = groups[5].css('.list-values__value::text')
+        sb_options = groups[4].css('.list-values__value::text')
         self.add_value('front_suspension', sb_options[0].get())
         self.add_value('back_suspension', sb_options[1].get())
         self.add_value('front_brakes', sb_options[2].get())
@@ -409,14 +446,22 @@ class SpecLoader(ItemLoader):
         
         # parse right table
         # performance indicators
-        pi_options = groups[6].css('.list-values__value::text')
-        self.add_value('max_speed', pi_options[0].get())
-        self.add_value('consumption_grade', pi_options[2].get())
-        self.add_value('eco_class', pi_options[4].get())
-        self.add_value('emissions', pi_options[5].get())
+        pi_options = groups[5].css('.list-values__value::text')
+        if len(pi_options) > 2:
+            self.add_value('max_speed', pi_options[0].get())
+            self.add_value('consumption_grade', pi_options[2].get())
+            self.add_value('eco_class', pi_options[4].get())
+            self.add_value('emissions', pi_options[5].get())
+        else:
+            self.add_value('consumption_grade', pi_options[1].get())
         
         # engine
-        en_options = groups[7].css('.list-values__value::text')
+        en_options = groups[6].css('.list-values__value::text')
+        
+        # hybrid cars have unsigned value, so it has to be skipped
+        if self.get_collected_values('engine_type')[0] == "гибрид":
+            en_options.pop(2)
+        
         self.add_value('engine_placement', en_options[1].get())
         self.add_value('engine_volume', en_options[2].get())
         self.add_value('boost_type', en_options[3].get())
@@ -425,7 +470,7 @@ class SpecLoader(ItemLoader):
         self.add_value('cylinders', en_options[6].get())
         self.add_value('cylinders_num', en_options[7].get())
         self.add_value('cylinders_valves', en_options[8].get())
-        
+            
         # disel cars do not have 'power_type'
         if self.get_collected_values('fuel')[0] != "ДТ":
             self.add_value('power_type', en_options[9].get())
@@ -435,38 +480,99 @@ class SpecLoader(ItemLoader):
             self.add_value('power_type', '-')
             self.add_value('compression_ratio', en_options[9].get())
             self.add_value('cylinder_size', en_options[10].get())
-    
+
+        if url:
+            self.add_value('url', url)
+        
     def add_url(self, url):
+        '''
+            WARNING: This method is DEPRECATED.
+            Method to pass url to Loader.
+            `self.selector` does not have parameter `url`, so it is not accessable in Loader.
+            
+            @param: response.url
+        '''
         self.add_value('url', url)
         
 class ImageItem(scrapy.Item):
     '''
-    Item class for storing images with car credentials.
+        Item class for storing images with car credentials.
     '''
-    _brand = scrapy.Field()
-    _model = scrapy.Field()
+    _brand = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
+    _model = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
     _generation = scrapy.Field()
+    _car_type = scrapy.Field()
     
-    image_urls = scrapy.Field()
+    image_urls = scrapy.Field(
+        output_processor = Identity()
+    )
     image = scrapy.Field()
     
 class ImageLoader(ItemLoader):
     '''
-    Loader for ImageItem() object.
+        Loader for `ImageItem()` object parsed from 'auto.ru'.
     '''
-    # default_output_processor = TakeFirst()
+    default_output_processor = TakeFirst()
     
     def parse_img(self):
         '''
-        Function for extracting images for auto.ru/../specification url.
+            Function for extracting images from auto.ru/../specification url.
         '''
-        # add image urlsas json
+        # add image urls as json
         img = json.loads(str(self.selector.css('.photo-gallery.model-gallery.i-bem::attr(data-bem)').get()))
-        img_urls = list(''.join(('https:',url['thumb'])) for url in img['photo-gallery']['photos'])
+        img_urls = list(''.join(('https:',url['img'])) for url in img['photo-gallery']['photos'])
         self.add_value('image_urls',img_urls)
-        
         # add credentials
-        self.add_css('_brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem.link_js_inited::text')
-        self.add_css('_model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem.link_js_inited::text')
-        self.add_css('_generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem.link_js_inited::text')
+        self.add_css('_brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem::text')
+        self.add_css('_model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem::text')
+        self.add_css('_generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem::text')
+        _car_type = json.loads(self.selector.css('.sale-data-attributes.sale-data-attributes_hidden.i-bem::attr(data-bem)').getall().pop())
+        self.add_value('_car_type',_car_type['sale-data-attributes']['type'])
         
+class QutoItem(ImageItem):
+    '''
+        Item class for storing images specific for quto.ru domain.
+    '''
+    image_urls = scrapy.Field(
+        input_processor=MapCompose(
+            lambda x: re.search('(?<=\(\)).*', x).group(0),
+            lambda x: ''.join(('https://quto.ru',x))
+        ),
+        output_processor=Identity()
+    )
+    # f means restyling in quto.ru
+    _generation = scrapy.Field(
+        input_processor = lambda x: x.replace('f','_restyling') if 'f' in x else x
+    )
+    # match car type until numbers
+    # ex: in str `hatchback5d` will match `hatchback`
+    _car_type = scrapy.Field(
+        input_processor = MapCompose(
+            lambda x: re.match('\w+(?=\d)',x).group(0)
+        )
+    )
+      
+class QutoLoader(ItemLoader):
+    '''
+        Loader for QutoItem() object parsed from 'quto.ru'.
+    '''
+    default_output_processor = TakeFirst()
+    
+    def parse_img(self, url=None):
+        # src is list of raw img links: 
+        # ex: '/thumb/100x0/filters:quality(75):no_upscale()/service-imgs/5e/06/0e/0d/5e060e0d955e6.jpeg'
+        src = self.selector.xpath('//img[contains(@class, "_3vBDgiAMbzDhS6NM4MnM3G")]/@src').getall()
+        self.add_value('image_urls', src)
+
+        if url:
+            url = url_parse.urlparse(url).path.split('/') # ['', 'audi', 'rs7', 'if', 'hatchback5d']
+            self.add_value('_brand', url[1])
+            self.add_value('_model', url[2])
+            self.add_value('_generation', url[3])
+            self.add_value('_car_type', url[4])

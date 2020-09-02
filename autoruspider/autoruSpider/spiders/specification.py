@@ -5,20 +5,21 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.spidermiddlewares.httperror import HttpError
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
+from scrapy_selenium import SeleniumRequest
 
 import logging
 import os
 import json
 
-from ..items import SpecLoader, SpecItem, ImageItem, ImageLoader
+from ..items import SpecLoader, SpecItem, ImageItem, ImageLoader, QutoLoader, QutoItem
 
 class SpecificationSpider(CrawlSpider):
     '''
-    Spider for crawling cars specifications from auto.ru.
+        Spider for crawling cars specifications from auto.ru.
 
-    @input - url for specific model.\n
-    @output - car specification in database.
-    @output - images for specific car(brand,model,generation).
+        @param: - url for specific model.\n
+        @return: - car specification in database.
+        @return: - images for specific car(brand,model,generation).
     '''
     name = "specification"
     log = os.path.join(os.getcwd(),'log','specification.log')
@@ -34,17 +35,17 @@ class SpecificationSpider(CrawlSpider):
 
     custom_settings = {
         'ITEM_PIPELINES':{
-            'autoruSpider.pipelines.DatabasePipeline':None,
-            'autoruSpider.pipelines.SpecImagesPipeline':None,
-            'scrapy.pipelines.images.ImagesPipeline': 1
+            'autoruSpider.pipelines.SpecPipeline':None,
+            'autoruSpider.pipelines.SpecImagesPipeline':300,
+            'scrapy.pipelines.images.ImagesPipeline':None,
         },
         'FEEDS':{
             'csv\\specs.csv':{
                 'format':'csv',
                 'encoding':'utf8',
-                'store_empty':True,
+                'store_empty':False,
                 'fields':[
-                    'brand','model','generation','modification',
+                    'brand','model','generation','modification','car_type',
                     'volume','power','transmission','engine_type',
                     'fuel','wheel_type','acceleration','consumption',
                     'country','car_class','doors','seats',
@@ -63,7 +64,8 @@ class SpecificationSpider(CrawlSpider):
         },
         'IMAGES_STORE':'img'
     }
-    allowed_domains = ['auto.ru']
+    allowed_domains = ['auto.ru',
+                       'quto.ru']
     start_urls = []
     rules = (
         Rule(LinkExtractor(allow=('specifications/', ), tags=('a'), attrs=('href',)), callback='parse_spec', follow=True),
@@ -72,9 +74,9 @@ class SpecificationSpider(CrawlSpider):
 
     def __init__(self, target=None, *args, **kwargs):
         '''
-        Custom init function to pass parameters to spider.
+            Custom init function to pass parameters to spider.
 
-        @input - start url(s) to begin crawling with.
+            @input: - start url(s) to begin crawling with.
         '''
         super().__init__(*args,**kwargs)
 
@@ -82,31 +84,45 @@ class SpecificationSpider(CrawlSpider):
         if self.start_urls is None:
             self.logger.warning("No url provided to the spider.")
     
+    def start_requests(self):
+        cls = self.__class__
+        if not self.start_urls and hasattr(self, 'start_url'):
+            raise AttributeError(
+                "Crawling could not start: 'start_urls' not found "
+                "or empty (but found 'start_url' attribute instead, "
+                "did you miss an 's'?)")
+        else:
+            for url in self.start_urls:
+                if 'quto.ru' in url:
+                    self.logger.info("Making request using selenium driver.")
+                    yield SeleniumRequest(url=url, callback=self.parse_img_quto)
+                else:
+                    yield Request(url, dont_filter=True)
+                
     def parse_start_url(self, response):
         '''
-        Function to parse page with car images.
+            Function to parse page with car images.
         '''
         self.logger.info("Spider {} started crawling.".format(self.name))
         self.logger.info("Start url is {}.".format(response.url))
         
         if ('auto.ru/catalog/cars' in response.url) and ('specification' not in response.url):
-            return self.parse_img(response) 
+            return self.parse_img(response)
             
     def parse_spec(self, response):
         '''
-        Callback function to parse response from LinkExtractor requests.
+            Callback function to parse response from LinkExtractor requests.
         '''
         self.logger.info("Parsing url {}.".format(response.url))
         
         spec_loader = SpecLoader(item=SpecItem(), response=response)
-        spec_loader.parse_spec()
-        spec_loader.add_url(response.url)
-
+        spec_loader.parse_spec(url=response.url)
+        
         yield spec_loader.load_item()
 
     def parse_img(self, response):
         '''
-        Callback for extracting images from ../specification url.
+            Callback for extracting images from ../specification url.
         '''
         self.logger.info("Parsing specification page {}.".format(response.url))
         
@@ -114,10 +130,21 @@ class SpecificationSpider(CrawlSpider):
         img_loader.parse_img()
         
         return img_loader.load_item()
-
+    
+    def parse_img_quto(self, response):
+        '''
+            Callback for extracting images from 'quto.ru'.
+        '''
+        self.logger.info("Parsing quto.ru page {}.".format(response.url))
+        
+        img_loader = QutoLoader(item=QutoItem(), response=response)
+        img_loader.parse_img(url=response.url)
+        
+        yield img_loader.load_item()
+        
     def errback_url(self,failure):
         '''
-        Callback for processing errors.
+            Callback for processing errors.
         '''
         self.logger.error(repr(failure))
 
@@ -130,3 +157,15 @@ class SpecificationSpider(CrawlSpider):
         elif failure.check(TimeoutError, TCPTimedOutError):
             request = failure.request
             self.logger.error("TimeoutError on %s", request.url)
+            
+    def test_func(self, response):
+        print("Test run.")
+        print("Response url: {}".format(response.url))
+        
+        groups = response.css('.list-values.list-values_view_ext.clearfix')
+        
+        field = groups[0].css('.list-values__value::text')
+        if field[3].get() == "гибрид":
+            print("Это гибрид")
+        else:
+            print(field[3].get())
