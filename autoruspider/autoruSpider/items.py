@@ -10,12 +10,18 @@ import json
 def serializer_int(value):
     if isinstance(value,list) and value:
         value = value.pop()
-    return int(value)
+    try:
+        return int(value)
+    except:
+        return value
     
 def serializer_float(value):
     if isinstance(value,list):
         value = value.pop()
-    return float(value)
+    try:
+        return float(value)
+    except:
+        return value
 
 def serialize_area(value):
     area = {"moskovskaya_oblast":"Москва",
@@ -23,9 +29,16 @@ def serialize_area(value):
     value = area[value]
     
     return value
+
+##############################
+### Monitor Spider section ###
+##############################
     
 class CarBriefItem(scrapy.Item):
-    title = scrapy.Field()
+    title = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: re.sub('\s+',' ',value))
+    )
     price = scrapy.Field(
         input_processor=Compose(TakeFirst(),
                                 lambda value: value.replace(u'\xa0', u''),
@@ -153,7 +166,11 @@ class CarLoader(ItemLoader):
         
         if not self.get_collected_values('price'):
             self.replace_value('price', '0')
-            
+
+############################
+### Brand Spider section ###
+############################ 
+         
 class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк
     
@@ -180,6 +197,10 @@ class ModelsLoader(ItemLoader):
         self.add_value('link', params)
         self.add_css('brand','::attr(href)')
         self.add_css('model','::attr(href)')
+        
+####################################
+### Specification Spider section ###
+####################################
 
 class SpecItem(scrapy.Item):
     '''
@@ -199,8 +220,14 @@ class SpecItem(scrapy.Item):
         input_processor=Compose(TakeFirst(),
                                 lambda x: x.lower().rstrip())
     )
-    generation = scrapy.Field()
-    car_type = scrapy.Field()
+    generation = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
+    car_type = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.lower().rstrip())
+    )
     
     # modification options
     volume = scrapy.Field(
@@ -235,10 +262,13 @@ class SpecItem(scrapy.Item):
         input_processor=TakeFirst(),
         output_processor=serializer_int
     )
-    seats = scrapy.Field()
+    seats = scrapy.Field(
+        input_processor=TakeFirst(),
+        output_processor=serializer_int
+    )
     
     """ 
-    Deprecated.
+    Deprecated group.
     
     # safety
     safety_rating = scrapy.Field()
@@ -322,8 +352,14 @@ class SpecItem(scrapy.Item):
         output_processor=serializer_float
     )
     boost_type = scrapy.Field()
-    max_power = scrapy.Field()
-    max_spin = scrapy.Field()
+    max_power = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('\u2009',' ').strip())
+    )
+    max_spin = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda value: value.replace('\u2009',' ').strip())
+    )
     cylinders = scrapy.Field()
     cylinders_num = scrapy.Field(
         input_processor=TakeFirst(),
@@ -338,7 +374,10 @@ class SpecItem(scrapy.Item):
         input_processor=TakeFirst(),
         output_processor=serializer_float
     )
-    cylinder_size = scrapy.Field()  
+    cylinder_size = scrapy.Field(
+        input_processor=Compose(TakeFirst(),
+                                lambda x: x.replace('\xd7', 'x'))
+    )  
     
     # miscellaneous
     url = scrapy.Field()
@@ -349,150 +388,76 @@ class SpecLoader(ItemLoader):
     '''
     default_output_processor = TakeFirst()
     
-    def parse_spec(self, url=None):
+    option_dict = {
+            'Объем':'volume',
+            'Мощность':'power',
+            'Коробка':'transmission',
+            'Тип двигателя':'engine_type',
+            'Топливо':'fuel',
+            'Привод':'wheel_type',
+            'Разгон':'acceleration',
+            'Расход':'consumption',
+            'Страна марки':'country',
+            'Класс автомобиля':'car_class',
+            'Количество дверей':'doors',
+            'Количество мест':'seats',
+            'Длина':'length',
+            'Ширина':'width',
+            'Высота':'heigth',
+            'Колёсная база':'wheel_base',
+            'Клиренс':'clearance',
+            'Размер колёс':'wheel_size',
+            'Ширина передней колеи':'front_width',
+            'Ширина задней колеи':'back_width',
+            'Объем багажника мин/макс, л':'trunk_volume',
+            'Объём топливного бака, л':'tank_volume',
+            'Снаряженная масса, кг':'equiped',
+            'Полная масса, кг':'full_weight',
+            'Количество передач':'speed_num',
+            'Тип передней подвески':'front_suspension',
+            'Тип задней подвески':'back_suspension',
+            'Передние тормоза':'front_brakes',
+            'Задние тормоза':'back_brakes',
+            'Выбросы CO2, г/км':'emissions',
+            'Максимальная скорость, км/ч':'max_speed',
+            'Расход топлива, л город/трасса/смешанный':'consumption_grade',
+            'Экологический класс':'eco_class',
+            'Расположение двигателя':'engine_placement',
+            'Объем двигателя, см³':'engine_volume',
+            'Тип наддува':'boost_type',
+            'Максимальная мощность, л.с./кВт при об/мин':'max_power',
+            'Максимальный крутящий момент, Н*м при об/мин':'max_spin',
+            'Расположение цилиндров':'cylinders',
+            'Количество цилиндров':'cylinders_num',
+            'Число клапанов на цилиндр':'cylinders_valves',
+            'Система питания двигателя':'power_type',
+            'Степень сжатия':'compression_ratio',
+            'Диаметр цилиндра и ход поршня, мм':'cylinder_size'
+        }
+    
+    def parse_spec(self,url=None):  
         '''
-            Function for parsing specification page on auto.ru
-            
-            All fields divide in 9 groups.
-            2 groups in the footer, 5 in the left table, 2 in the right.
-            
-            @param: keyword argument `url` is response.url parameter.
-                    it gives access to the url inside Loader.
-        '''
+            Method for parsing specification page content.
+        '''      
         # car credentials
         self.add_css('modification',".catalog__header::text")
         self.add_css('brand','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_mark.link__control.i-bem::text')
         self.add_css('model','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_model.link__control.i-bem::text')
         self.add_css('generation','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_generation.link__control.i-bem::text')
-        car_type = json.loads(self.selector.css('.sale-data-attributes.sale-data-attributes_hidden.i-bem::attr(data-bem)').getall().pop())
-        self.add_value('car_type',car_type['sale-data-attributes']['type'])
+        self.add_css('car_type','.link.link_pseudo.search-form-v2-mmm__breadcrumbs-item.search-form-v2-mmm__breadcrumbs-item_state_selected.search-form-v2-mmm__breadcrumbs-item_type_configuration.link__control.i-bem::text')
         
-        mod_groups = self.selector.css('.list-values.list-values_view_ext.clearfix')
-        # parse left options table
-        l_options = mod_groups[0].css('.list-values__value::text')
-        self.add_value('volume', l_options[0].get())
-        self.add_value('power', l_options[1].get())
-        self.add_value('transmission', l_options[2].get())
-        self.add_value('engine_type', l_options[3].get())
+        content = self.selector.css('.catalog__content')
         
-        # parse right options table
-        r_options = mod_groups[1].css('.list-values__value::text')
-        if len(r_options) > 3:
-            self.add_value('fuel', r_options[0].get())
-            self.add_value('wheel_type', r_options[1].get())
-            self.add_value('acceleration', r_options[2].get())
-            self.add_value('consumption', r_options[3].get())
-        else:
-            self.add_value('fuel', r_options[0].get())
-            self.add_value('wheel_type', r_options[1].get())
-            self.add_value('consumption', r_options[2].get())
-
-        # option groups
-        # value from 7 to 8
-        groups = self.selector.css('.catalog__details-group')
+        # options and values are paired
+        options = [option.css('.list-values__value::text').get(default='empty') for option in content.css('.list-values__value')]
+        labels = [label.css('.list-values__label::text').get(default='empty') for label in content.css('.list-values__label')]
         
-        if len(groups) > 7:
-            # remove second option section (`safety`)
-            groups.pop(1)
-        
-        # parse left table
-        # common info
-        cm_options = groups[0].css('.list-values__value::text')
-        self.add_value('country', cm_options[0].get())
-        self.add_value('car_class', cm_options[1].get())
-        self.add_value('doors', cm_options[2].get())
-        self.add_value('seats', cm_options[3].get())
-        
-        """ 
-        Deprecated.
-        This section appears not in every specification
-        
-        # safety
-        sa_options = groups[1].css('.list-values__value::text')
-        self.add_value('safety_rating', sa_options[0].get())
-        self.add_value('rating', sa_options[1].get())
-         """
-         
-        # size
-        sz_options = groups[1].css('.list-values__value::text')
-        self.add_value('length', sz_options[0].get())
-        self.add_value('width', sz_options[1].get())
-        self.add_value('heigth', sz_options[2].get())
-        self.add_value('wheel_base', sz_options[3].get())
-        self.add_value('clearance', sz_options[4].get())
-        self.add_value('front_width',sz_options[5].get())
-        self.add_value('back_width',sz_options[6].get())
-        self.add_value('wheel_size', sz_options[7].get())
-        
-        # volume & weight
-        vw_options = groups[2].css('.list-values__value::text')
-        self.add_value('trunk_volume', vw_options[0].get())
-        self.add_value('tank_volume', vw_options[1].get())
-        self.add_value('equiped', vw_options[2].get())
-        self.add_value('full_weight', vw_options[3].get())
-        
-        # transmission
-        tr_options = groups[3].css('.list-values__value::text')
-        if len(tr_options) == 3:
-            self.add_value('speed_num', tr_options[1].get())
-        
-        
-        # suspension & brakes
-        sb_options = groups[4].css('.list-values__value::text')
-        self.add_value('front_suspension', sb_options[0].get())
-        self.add_value('back_suspension', sb_options[1].get())
-        self.add_value('front_brakes', sb_options[2].get())
-        self.add_value('back_brakes', sb_options[3].get())
-        
-        # parse right table
-        # performance indicators
-        pi_options = groups[5].css('.list-values__value::text')
-        if len(pi_options) > 2:
-            self.add_value('max_speed', pi_options[0].get())
-            self.add_value('consumption_grade', pi_options[2].get())
-            self.add_value('eco_class', pi_options[4].get())
-            self.add_value('emissions', pi_options[5].get())
-        else:
-            self.add_value('consumption_grade', pi_options[1].get())
-        
-        # engine
-        en_options = groups[6].css('.list-values__value::text')
-        
-        # hybrid cars have unsigned value, so it has to be skipped
-        if self.get_collected_values('engine_type')[0] == "гибрид":
-            en_options.pop(2)
-        
-        self.add_value('engine_placement', en_options[1].get())
-        self.add_value('engine_volume', en_options[2].get())
-        self.add_value('boost_type', en_options[3].get())
-        self.add_value('max_power', en_options[4].get())
-        self.add_value('max_spin', en_options[5].get())
-        self.add_value('cylinders', en_options[6].get())
-        self.add_value('cylinders_num', en_options[7].get())
-        self.add_value('cylinders_valves', en_options[8].get())
-            
-        # disel cars do not have 'power_type'
-        if self.get_collected_values('fuel')[0] != "ДТ":
-            self.add_value('power_type', en_options[9].get())
-            self.add_value('compression_ratio', en_options[10].get())
-            self.add_value('cylinder_size', en_options[11].get())
-        else:
-            self.add_value('power_type', '-')
-            self.add_value('compression_ratio', en_options[9].get())
-            self.add_value('cylinder_size', en_options[10].get())
+        for label,option in zip(labels,options):
+            if self.option_dict.get(label,None):
+                self.add_value(self.option_dict[label],option)
 
         if url:
             self.add_value('url', url)
-        
-    def add_url(self, url):
-        '''
-            WARNING: This method is DEPRECATED.
-            Method to pass url to Loader.
-            `self.selector` does not have parameter `url`, so it is not accessable in Loader.
-            
-            @param: response.url
-        '''
-        self.add_value('url', url)
         
 class ImageItem(scrapy.Item):
     '''

@@ -13,6 +13,10 @@ import pyodbc as msdb
 import socket
 from io import BytesIO
 
+##############################
+### Monitor Spider section ###
+##############################
+           
 class DatabasePipeline(object):
     log = os.path.join(os.getcwd(),"log","db.log")
     
@@ -140,87 +144,108 @@ class DatabasePipeline(object):
         except TypeError:
             return None
         
+####################################
+### Specification Spider section ###
+####################################
+
 class SpecPipeline(DatabasePipeline):
     '''
         PipeLine for processing SpecItems produced by `specification` spider.
-    '''
-    log = os.path.join(os.path.dirname(__file__),"spiders\\log","spec_db.log")
+    '''  
+    log = os.path.join(os.getcwd(),"log","spec.log")
+    
+    def __init__(self, db, user, password, host, driver):
+        super().__init__(db, user, password, host, driver)
+        self.added = False      
         
     def process_item(self, item, spider):
         try:
             if hasattr(spider, 'OID'):
-                if '_brand' in item:
-                    self.add_img_to_db(spider)
-                if 'brand' in item:
-                    self.add_to_db(item, spider)
+                self.add_item(item, spider)
         except Exception as ex:
-            self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex))
+            if 'PRIMARY KEY' or 'UNIQUE KEY' not in ex[1]:
+                self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex[1]))
+                self.logger.warning("Item {}".format(item.get('modification')))
         finally:
             return item 
           
-    def add_to_db(self, item, spider):
-        query = '''INSERT TO {self.db}.[].[] (
-        [Brand],[Model],[Generation],[Modification],
-        [Volume],[Power],[Transmission],[Engine_type],
-        [Fuel],[Wheel_type],[Acceleration],[Consumption],
-        [Country],[Car_class],[Doors],[Seats],
-        [Safety_rating],[Rating],
-        [Length],[Width],[Heigth],[Wheel_base],[Clearance],[Front_width],[Back_width],[Wheel_size],
-        [Trunk_size],[Tank_volume],[Equiped],[Full_weight],
-        [Speed_num],
-        [Front_suspension],[Back_suspension],[Front_brakes],[Back_brakes],
-        [Max_speed],[Consumption_grade],[Eco_class],[Emission],
-        [Engine_placement],[Boost_type],[Max_power],[Max_spin],
-        [Cylinders],[Cylinders_num],[Cylinders_valves],[Cylinder_size],
-        [Compression_ratio],[Power_type],
-        [Url]
+    def _add_spec(self, item, spider):
+        query = f'''INSERT INTO [{self.db}].[dbo].[Specification] (
+        [Brand],[Model],[Generation],[Modification],[CarType],
+        [Volume],[HorsePower],[Transmission],[EngineType],
+        [Fuel],[WheelType],[Acceleration],[Consumption],
+        [Country],[CarClass],[Doors],[Seats],
+        [Length],[Width],[Heigth],[WheelBase],[Clearance],[FrontWidth],[BackWidth],[WheelSize],
+        [TrunkVolume],[TankVolume],[Equiped],[FullWeight],
+        [SpeedNum],
+        [FrontSuspension],[BackSuspension],[FrontBrakes],[BackBrakes],
+        [MaxSpeed],[ConsumptionGrade],[EcoClass],[Emission],
+        [EnginePlacement],[EngineVolume],[BoostType],[MaxPower],[MaxSpin],
+        [Cylinders],[CylindersNum],[CylindersValves],[CylinderSize],
+        [CompressionRatio],[PowerType],
+        [Url],[CarOID]
         )
         VALUES 
         (?,?,?,?,?,
         ?,?,?,?,
         ?,?,?,?,
         ?,?,?,?,
-        ?,?
         ?,?,?,?,?,?,?,?,
+        ?,?,?,?,
         ?,
         ?,?,?,?,
         ?,?,?,?,
-        ?,?,?,?,
+        ?,?,?,?,?,
         ?,?,?,?,
         ?,?,
-        ?)
+        ?,?)
         '''
-        args = (item['brand'],item['model'],item['generation'],item['modification'],item['car_type'],
-                item['volume'],item['power'],item['transmission'],item['engine_type'],
-                item['fuel'],item['wheel_type'],item['acceleration'],item['consumption'],
-                item['country'],item['car_class'],item['doors'],item['seats'],
-                item['safety_rating'],item['rating'],
-                item['length'],item['width'],item['heigth'],item['wheel_base'],item['clearance'],item['front_width'],item['back_width'],item['wheel_size'],
-                item['trunk_size'],item['tank_volume'],item['equiped'],item['full_weight'],
-                item['speed_num'],
-                item['front_suspention'],item['back_suspention'],item['front_brakes'],item['back_brakes'],
-                item['max_speed'],item['consumption_grade'],item['eco_class'],item['emission'],
-                item['engine_placement'],item['boost_type'],item['max_power'],item['max_spin'],
-                item['cylinders'],item['cylinders_num'],item['cylinders_valves'],item['cylinders_size'],
-                item['compression_ratio'],item['power_type'],
-                item['url'])
+        args = (item.get('brand',None),item.get('model',None),item.get('generation',None),item.get('modification',None),item.get('car_type',None),
+                item.get('volume',None),item.get('power',None),item.get('transmission',None),item.get('engine_type',None),
+                item.get('fuel',None),item.get('wheel_type',None),item.get('acceleration',None),item.get('consumption',None),
+                item.get('country',None),item.get('car_class',None),item.get('doors',None),item.get('seats',None),
+                item.get('length',None),item.get('width',None),item.get('heigth',None),item.get('wheel_base',None),item.get('clearance',None),
+                item.get('front_width',None),item['back_width'],item.get('wheel_size',None),
+                item.get('trunk_volume',None),item.get('tank_volume',None),item.get('equiped',None),item.get('full_weight',None),
+                item.get('speed_num',None),
+                item.get('front_suspension',None),item.get('back_suspension',None),item.get('front_brakes',None),item.get('back_brakes',None),
+                item.get('max_speed',None),item.get('consumption_grade',None),item.get('eco_class',None),item.get('emissions',None),
+                item.get('engine_placement',None),item.get('engine_volume',None),item.get('boost_type',None),item.get('max_power',None),item.get('max_spin',None),
+                item.get('cylinders',None),item.get('cylinders_num',None),item.get('cylinders_valves',None),item.get('cylinder_size',None),
+                item.get('compression_ratio',None),item.get('power_type',None),
+                item.get('url',None),spider.OID)
         
         self.cursor.execute(query,args)
         self.conn.commit()
         
-        self.logger.info("Item {0} - {1} - {2} - {3} added to {4}".format(item['brand'],
+        self.logger.info("Item {0} - {1} - {2} - {3} - {4} added to {5}".format(item['brand'],
                                                                           item['model'],
                                                                           item['generation'],
                                                                           item['modification'],
+                                                                          spider.OID,
                                                                           self.db))
         
-    def add_img_to_db(self, spider):
-        query = '''INSERT TO {self.db}.[].[] ([ImgPath],[CarOID])
+    def _add_img_path(self, spider):
+        query = f'''INSERT INTO [{self.db}].[dbo].[Image] ([ID],[ImageFile])
         VALUES
         (?,?)
         '''
-        args = (spider.path,spider.OID)
+        path = os.path.join(spider.custom_settings['IMAGES_STORE'],spider.path)
+        args = (spider.OID,path)
+        
+        self.cursor.execute(query,args)
+        self.conn.commit()
+        
+        self.logger.info("Image path {} added for OID {}".format(spider.path, spider.OID))
+    
+    def add_item(self, item, spider):
+        if not self.added and '_brand' in item:
+            self._add_img_path(spider)
+            self.added = True
             
+        if 'brand' in item:
+            self._add_spec(item, spider)
+        
 class SpecImagesPipeline(ImagesPipeline):
     '''
         PipeLine for processing ImageItems produced by `specification` spider.
@@ -252,7 +277,7 @@ class SpecImagesPipeline(ImagesPipeline):
         image_guid = hashlib.sha1(to_bytes(request.url)).hexdigest()
         
         if self.path:
-            return "{}\\{}.jpg".format(self.path, image_guid)
+            return "{}\\{}.jpg".format(self.path,image_guid)
         else:
             return "full/%s.jpg".format(image_guid)
     

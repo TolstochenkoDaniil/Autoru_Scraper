@@ -36,7 +36,7 @@ class SpecificationSpider(CrawlSpider):
 
     custom_settings = {
         'ITEM_PIPELINES':{
-            'autoruSpider.pipelines.SpecPipeline':None,
+            'autoruSpider.pipelines.SpecPipeline':200,
             'autoruSpider.pipelines.SpecImagesPipeline':300,
             'scrapy.pipelines.images.ImagesPipeline':None,
         },
@@ -50,20 +50,19 @@ class SpecificationSpider(CrawlSpider):
                     'volume','power','transmission','engine_type',
                     'fuel','wheel_type','acceleration','consumption',
                     'country','car_class','doors','seats',
-                    'safety_rating','rating',
                     'length','width','heigth','wheel_base','clearance','front_wigth','back_width','wheel_size',
                     'trunk_size','tank_volume','equiped','full_weight',
                     'speed_num',
                     'front_suspension','back_suspension','front_brakes','back_brakes',
                     'max_speed','consumption_grade','eco_class','emission',
-                    'engine_placement','boost_type','max_power','max_spin',
+                    'engine_placement','engine_volume','boost_type','max_power','max_spin',
                     'cylinders','cylinders_num','cylinders_valves','cylinder_size',
                     'compression_ratio','power_type',
-                    'url'
+                    'url','OID'
                     ]
             }
         },
-        'IMAGES_STORE':'img'
+        'IMAGES_STORE':r'\\192.168.99.236\img'
     }
     allowed_domains = ['auto.ru',
                        'quto.ru']
@@ -89,8 +88,7 @@ class SpecificationSpider(CrawlSpider):
         else:
             self.OID = OID
             if os.path.exists(self.custom_settings['IMAGES_STORE']):
-                self.path = r"{}\{}".format(self.custom_settings['IMAGES_STORE'],
-                                            self.OID)
+                self.path = r"{}".format(self.OID)
             
         self.start_urls.append(target)
         
@@ -175,10 +173,10 @@ class SpecificationSpider(CrawlSpider):
         print("Test run.")
         print("Response url: {}".format(response.url))
         
-        groups = response.css('.list-values.list-values_view_ext.clearfix')
+        content = response.css('.catalog__content')
         
-        field = groups[0].css('.list-values__value::text')
-        if field[3].get() == "гибрид":
-            print("Это гибрид")
-        else:
-            print(field[3].get())
+        options = [option.css('.list-values__value::text').get(default='empty') for option in content.css('.list-values__label')]
+        labels = [label.css('.list-values__label::text').get(default='empty') for label in content.css('.list-values__label')]
+        
+        print(len(options), len(labels))
+        print(labels)
