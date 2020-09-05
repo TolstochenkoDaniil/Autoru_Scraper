@@ -3,6 +3,7 @@ from scrapy.http import Request
 from scrapy.spidermiddlewares.httperror import HttpError
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
+from scrapy.utils.project import get_project_settings
 
 import logging
 import urllib.parse as url_parse
@@ -26,10 +27,16 @@ class Test(Spider):
                       'car_type','wheel_type','transmission',
                       'color','city','advert','link','date']
         }
+
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'test.log')
     
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
+
     logger = logging.getLogger(__name__)
 
-    f_handler = logging.FileHandler(r'log\test.log', mode='w')
+    f_handler = logging.FileHandler(log, mode='w')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)

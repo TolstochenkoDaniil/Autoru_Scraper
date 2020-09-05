@@ -3,6 +3,7 @@ from scrapy.http import Request
 from scrapy.spidermiddlewares.httperror import HttpError
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
+from scrapy.utils.project import get_project_settings
 
 import logging
 import urllib.parse as url_parse
@@ -16,8 +17,13 @@ class Monitor(Spider):
     name = 'monitor'
     allowed_domains = ['auto.ru']
     path = os.path.join(os.getcwd(),"csv","brands.csv")
-    log = os.path.join(os.getcwd(),"log","monitor.log")
+
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'monitor.log')
     
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
+
     logger = logging.getLogger(__name__)
 
     f_handler = logging.FileHandler(log, mode='w')

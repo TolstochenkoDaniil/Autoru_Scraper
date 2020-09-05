@@ -4,6 +4,7 @@ from scrapy.pipelines.images import ImagesPipeline
 from scrapy.utils.python import to_bytes
 from itemadapter import ItemAdapter
 from scrapy.http import Request
+from scrapy.utils.project import get_project_settings
 
 import os
 import hashlib
@@ -18,7 +19,11 @@ from io import BytesIO
 ##############################
            
 class DatabasePipeline(object):
-    log = os.path.join(os.getcwd(),"log","db.log")
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'db.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 
@@ -152,7 +157,6 @@ class SpecPipeline(DatabasePipeline):
     '''
         PipeLine for processing SpecItems produced by `specification` spider.
     '''  
-    log = os.path.join(os.getcwd(),"log","spec.log")
     
     def __init__(self, db, user, password, host, driver):
         super().__init__(db, user, password, host, driver)
@@ -250,7 +254,11 @@ class SpecImagesPipeline(ImagesPipeline):
     '''
         PipeLine for processing ImageItems produced by `specification` spider.
     '''
-    log = os.path.join(os.path.dirname(__file__),"spiders\\log","img.log")
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'img.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 

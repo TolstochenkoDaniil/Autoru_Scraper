@@ -6,6 +6,7 @@ from scrapy.spidermiddlewares.httperror import HttpError
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
 from scrapy_selenium import SeleniumRequest
+from scrapy.utils.project import get_project_settings
 
 import logging
 import os
@@ -23,7 +24,12 @@ class SpecificationSpider(CrawlSpider):
         @return: - images for specific car(brand,model,generation).
     '''
     name = "specification"
-    log = os.path.join(os.getcwd(),'log','specification.log')
+
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'specification.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
 
     logger = logging.getLogger(__name__)
 
@@ -40,30 +46,9 @@ class SpecificationSpider(CrawlSpider):
             'autoruSpider.pipelines.SpecImagesPipeline':300,
             'scrapy.pipelines.images.ImagesPipeline':None,
         },
-        'FEEDS':{
-            'csv\\specs.csv':{
-                'format':'csv',
-                'encoding':'utf8',
-                'store_empty':False,
-                'fields':[
-                    'brand','model','generation','modification','car_type',
-                    'volume','power','transmission','engine_type',
-                    'fuel','wheel_type','acceleration','consumption',
-                    'country','car_class','doors','seats',
-                    'length','width','heigth','wheel_base','clearance','front_wigth','back_width','wheel_size',
-                    'trunk_size','tank_volume','equiped','full_weight',
-                    'speed_num',
-                    'front_suspension','back_suspension','front_brakes','back_brakes',
-                    'max_speed','consumption_grade','eco_class','emission',
-                    'engine_placement','engine_volume','boost_type','max_power','max_spin',
-                    'cylinders','cylinders_num','cylinders_valves','cylinder_size',
-                    'compression_ratio','power_type',
-                    'url','OID'
-                    ]
-            }
-        },
         'IMAGES_STORE':r'\\192.168.99.236\img'
     }
+
     allowed_domains = ['auto.ru',
                        'quto.ru']
     start_urls = []
@@ -89,11 +74,11 @@ class SpecificationSpider(CrawlSpider):
             self.OID = OID
             if os.path.exists(self.custom_settings['IMAGES_STORE']):
                 self.path = r"{}".format(self.OID)
-            
-        self.start_urls.append(target)
         
-        if self.start_urls is None:
-            self.logger.warning("No url provided to the spider.")
+        if not target:
+            raise AttributeError("No target url provided.\nCrawl start aborted.")
+        else:
+            self.start_urls.append(target)
     
     def start_requests(self):
         cls = self.__class__
