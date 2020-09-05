@@ -6,7 +6,9 @@
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from scrapy.exceptions import NotConfigured
 
+import pyodbc as msdb
 
 class AutoruspiderSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
@@ -101,3 +103,63 @@ class AutoruspiderDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+        
+class MonitorSpiderMiddleware(AutoruspiderSpiderMiddleware):
+    '''
+        Middleware for preinitialization `monitor` spider.
+    '''
+    def __init__(self, db, user,password,host,driver):
+        self.db = db
+        self.user = user
+        self.password = password
+        self.host = host
+        self.driver = driver
+        conn = None
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        # This method is used by Scrapy to create your spiders.
+        db_settings = crawler.settings.getdict("DB_SETTINGS")
+        
+        if not db_settings:
+            raise NotConfigured
+        
+        db = db_settings['db']
+        user = db_settings['user']
+        password = db_settings['password']
+        host = db_settings['host']
+        driver = db_settings['driver']
+        
+        s = cls(db,user,password,host,driver)
+        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
+        return s
+    
+    def spider_opened(self, spider):
+        spider.logger.info('Spider opened: %s' % spider.name)
+        spider.start_urls = self._get_urls_from_db(spider)
+        
+    def _get_urls_from_db(self,spider):
+        '''
+            Method to retrieve valid urls from database.
+            @return: list of urls.
+        '''
+        # query string
+        query = f'''
+        SELECT [URL_]\n
+        FROM [{self.db}].[dbo].[CarModificationsAutoUpdate]
+        '''
+        
+        conn = msdb.connect(self.driver+'SERVER='+self.host+';DATABASE='+self.db+';UID='+self.user+';PWD='+str(self.password))
+        
+        if conn:
+            spider.logger.info("Spider connection successfull.")
+        else:
+            spider.logger.warning("Connection failed.")
+            spider.logger.warning("DataBase settings:\nuser - {}\nhost - {}\ndb - {}".format(self.user,self.host,self.db))
+            
+        cursor = conn.cursor()
+        urls = cursor.execute(query).fetchall()
+
+        conn.close()
+        
+        return [url[0] for url in urls]    

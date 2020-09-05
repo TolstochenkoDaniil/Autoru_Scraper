@@ -2,6 +2,7 @@
 from scrapy.exceptions import NotConfigured
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy.utils.python import to_bytes
+from scrapy.utils.project import get_project_settings
 from itemadapter import ItemAdapter
 from scrapy.http import Request
 
@@ -18,7 +19,11 @@ from io import BytesIO
 ##############################
            
 class DatabasePipeline(object):
-    log = os.path.join(os.getcwd(),"log","db.log")
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'db.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 
@@ -50,7 +55,7 @@ class DatabasePipeline(object):
         
     def process_item(self,item,spider):
         if self.get_id(item): 
-            if item['price']:
+            if 'price' in item:
                 db_price = self.get_price(item)
                 
                 if (db_price > item['price']):
@@ -103,10 +108,12 @@ class DatabasePipeline(object):
                 VALUES
                 (?,?,?)
                 '''
-        if item['price']:
-            args = (item['price'],ts,item['ID'])
-        else:
-            args = (0,ts,item['ID'])
+        
+        args = (item.get('price',0),ts,item.get('ID'))
+        # if item['price']:
+        #     args = (item['price'],ts,item['ID'])
+        # else:
+        #     args = (0,ts,item['ID'])
         
         self.logger.info("Added price record to {}".format(item['ID']))
         
@@ -132,7 +139,7 @@ class DatabasePipeline(object):
         query = f'''SELECT TOP 1 [Price] 
                 FROM [{self.db}].[dbo].[Prices]
                 WHERE [CarID] = ?
-                ORDER BY [OID] DESC
+                ORDER BY [ID] DESC
                 '''
         args = (item['ID'])
         
@@ -152,7 +159,6 @@ class SpecPipeline(DatabasePipeline):
     '''
         PipeLine for processing SpecItems produced by `specification` spider.
     '''  
-    log = os.path.join(os.getcwd(),"log","spec.log")
     
     def __init__(self, db, user, password, host, driver):
         super().__init__(db, user, password, host, driver)
@@ -250,7 +256,11 @@ class SpecImagesPipeline(ImagesPipeline):
     '''
         PipeLine for processing ImageItems produced by `specification` spider.
     '''
-    log = os.path.join(os.path.dirname(__file__),"spiders\\log","img.log")
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'img.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 

@@ -9,6 +9,9 @@ test.*
 crawl/
 autoruSpider/build/
 autoruSpider/project.egg-info/
+autoruSpider/autoruSpider/log
+autoruSpider/autoruSpider/csv
+autoruSpider/autoruSpider/json
 autoruSpider/autoruSpider/spiders/img/
 autoruSpider/autoruSpider/spiders/json/
 autoruSpider/autoruSpider/spiders/log/

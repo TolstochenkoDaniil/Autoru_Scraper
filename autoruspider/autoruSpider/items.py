@@ -131,8 +131,8 @@ class CarLoader(ItemLoader):
         self.add_xpath('price', 
                        './/div[@class="ListingItemPrice-module__content"]//text()')
         
-        if not self.get_collected_values('price'):
-            self.replace_value('price', '0')
+        # if not self.get_collected_values('price'):
+        #     self.replace_value('price', '0')
             
     def parse_new(self):
         self.add_xpath('title', 
@@ -164,8 +164,8 @@ class CarLoader(ItemLoader):
         self.add_xpath('price', 
                        './/div[@class="ListingItemPrice-module__content"]//text()')
         
-        if not self.get_collected_values('price'):
-            self.replace_value('price', '0')
+        # if not self.get_collected_values('price'):
+        #     self.replace_value('price', '0')
 
 ############################
 ### Brand Spider section ###

@@ -3,6 +3,7 @@ from scrapy.spiders import CrawlSpider, Rule
 from scrapy.http import Request
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spidermiddlewares.httperror import HttpError
+from scrapy.utils.project import get_project_settings
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
 from scrapy_selenium import SeleniumRequest
@@ -23,8 +24,13 @@ class SpecificationSpider(CrawlSpider):
         @return: - images for specific car(brand,model,generation).
     '''
     name = "specification"
-    log = os.path.join(os.getcwd(),'log','specification.log')
-
+    
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'specification.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
+        
     logger = logging.getLogger(__name__)
 
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -38,7 +44,6 @@ class SpecificationSpider(CrawlSpider):
         'ITEM_PIPELINES':{
             'autoruSpider.pipelines.SpecPipeline':200,
             'autoruSpider.pipelines.SpecImagesPipeline':300,
-            'scrapy.pipelines.images.ImagesPipeline':None,
         },
         'FEEDS':{
             'csv\\specs.csv':{
@@ -64,6 +69,7 @@ class SpecificationSpider(CrawlSpider):
         },
         'IMAGES_STORE':r'\\192.168.99.236\img'
     }
+    
     allowed_domains = ['auto.ru',
                        'quto.ru']
     start_urls = []

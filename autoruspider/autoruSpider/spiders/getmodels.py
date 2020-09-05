@@ -1,7 +1,8 @@
 from scrapy import Spider
 from ..items import ModelsItem, ModelsLoader
-import logging
+from scrapy.utils.project import get_project_settings
 
+import logging
 import re
 import os
 
@@ -24,7 +25,11 @@ class Brands(Spider):
         }
     }
     
-    log = os.path.join(os.getcwd(),"log","brands.log")
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'brands.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 
@@ -42,15 +47,15 @@ class Brands(Spider):
             for area in self.area_list:
                 yield self.parse_item(selector, response, area)
     
-    
     def parse_item(self, selector, response, area):        
         
         brand = re.split('/', selector.css('::attr(href)').get())[3]
         
-        if brand in self.brands_filter:
+        if brand in self.brands_filter or self.brands_filter is None:
             InfoModelsLoader = ModelsLoader(item = ModelsItem(),
                                             selector=selector)
             InfoModelsLoader.get_model(area)
             self.logger.info("Added link: %s", InfoModelsLoader.get_collected_values('link'))
             
             return InfoModelsLoader.load_item()
+            

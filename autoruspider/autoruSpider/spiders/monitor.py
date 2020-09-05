@@ -1,6 +1,7 @@
 from scrapy import Spider
 from scrapy.http import Request
 from scrapy.spidermiddlewares.httperror import HttpError
+from scrapy.utils.project import get_project_settings
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
 
@@ -15,8 +16,12 @@ from ..items import CarBriefItem, CarLoader
 class Monitor(Spider):
     name = 'monitor'
     allowed_domains = ['auto.ru']
-    path = os.path.join(os.getcwd(),"csv","brands.csv")
-    log = os.path.join(os.getcwd(),"log","monitor.log")
+    
+    log_dir = get_project_settings().get('LOG_DIR')
+    log = os.path.join(log_dir,'monitor.log')
+    
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
     
     logger = logging.getLogger(__name__)
 
@@ -27,18 +32,40 @@ class Monitor(Spider):
 
     logger.addHandler(f_handler)
     
-    if os.path.exists(path):
-        start_urls = list(pd.read_csv(path, header=0).iloc[:,2])
-    else:
-        logger.warning("No input file with urls.")
+    start_urls = []
     
+    def __init__(self, path=None, *args, **kwargs):
+        '''
+            Custom init function to pass parameters to spider.\r\n
+            @param: `path` where start_urls file located 
+            related to project folder(where `settings.py` file is stored).
+        '''
+        super().__init__(*args,**kwargs)
+        
+        if path:
+            abspath = os.path.join(get_project_settings().get('CWD'),path)
+            if os.path.exists(abspath):
+                self.custom_settings = {
+                    'SPIDER_MIDDLEWARES' : {
+                        'autoruSpider.middlewares.MonitorSpiderMiddleware': None,
+                    }
+                }
+                
+                self.start_urls = list(pd.read_csv(abspath, header=0).iloc[:,2])
+                self.logger.info("Reading urls from file.")
+            else:
+                self.logger.warning("No input file with urls.")
+        
     def start_requests(self):
-        self.logger.info("Spider {} started crawling.".format(self.name))
-        for url in self.start_urls:
-            yield Request(url,
-                          callback=self.parse,
-                          errback=self.errback_url,
-                          dont_filter=False)
+        self.logger.info("Spider {} starts crawling.".format(self.name))
+        if not self.start_urls and hasattr(self, 'start_url'):
+            raise AttributeError("Spider {} does not have values in 'start_urls'.")
+        else:
+            for url in self.start_urls:
+                yield Request(url,
+                            callback=self.parse,
+                            errback=self.errback_url,
+                            dont_filter=False)
 
     def parse(self, response):    
         self.logger.info("Parsing response {}".format(response.url))             
