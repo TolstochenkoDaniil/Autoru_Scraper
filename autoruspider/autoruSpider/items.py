@@ -130,9 +130,6 @@ class CarLoader(ItemLoader):
                     
         self.add_xpath('price', 
                        './/div[@class="ListingItemPrice-module__content"]//text()')
-        
-        # if not self.get_collected_values('price'):
-        #     self.replace_value('price', '0')
             
     def parse_new(self):
         self.add_xpath('title', 
@@ -163,9 +160,6 @@ class CarLoader(ItemLoader):
                      '.Link.ListingItemSalonName-module__container.ListingItem-module__salonName::text')
         self.add_xpath('price', 
                        './/div[@class="ListingItemPrice-module__content"]//text()')
-        
-        # if not self.get_collected_values('price'):
-        #     self.replace_value('price', '0')
 
 ############################
 ### Brand Spider section ###
@@ -175,13 +169,13 @@ class ModelsItem(scrapy.Item):
     #Рабочая версия получения параметров из строк
     
     brand = scrapy.Field(
-            output_processor=MapCompose(lambda value: re.split('/',value)[3])
+            input_processor=MapCompose(lambda value: re.split('/',value)[3])
         )
     model = scrapy.Field(
-            output_processor=MapCompose(lambda value: re.split('/',value)[4])
+            input_processor=MapCompose(lambda value: re.split('/',value)[4])
         )
     link = scrapy.Field(
-            output_processor=MapCompose(lambda value: ''.join(['https://auto.ru/',
+            input_processor=MapCompose(lambda value: ''.join(['https://auto.ru/',
                                                               value.get('terr'),
                                                               value.get('url').replace('/catalog',''),
                                                               'all/']))

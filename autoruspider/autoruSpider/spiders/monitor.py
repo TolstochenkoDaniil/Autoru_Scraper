@@ -9,7 +9,7 @@ import logging
 import urllib.parse as url_parse
 import re
 import os
-import pandas as pd
+import json
 
 from ..items import CarBriefItem, CarLoader
 
@@ -17,8 +17,13 @@ class Monitor(Spider):
     name = 'monitor'
     allowed_domains = ['auto.ru']
     
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'autoruSpider.pipelines.DatabasePipeline': 500,
+        },
+    }
     log_dir = get_project_settings().get('LOG_DIR')
-    log = os.path.join(log_dir,'monitor.log')
+    log = os.path.join(log_dir,'{}.log'.format(name))
     
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
@@ -51,9 +56,17 @@ class Monitor(Spider):
                     }
                 }
                 
-                self.start_urls = list(pd.read_csv(abspath, header=0).iloc[:,2])
+                with open(abspath,'r') as f:
+                    data = json.loads(f.read())
+                    
+                self.start_urls = [url['link'] for url in data]
                 self.logger.info("Reading urls from file.")
             else:
+                self.custom_settings = {
+                    'SPIDER_MIDDLEWARES': {
+                        'autoruSpider.middlewares.MonitorSpiderMiddleware': 100,
+                    },
+                }
                 self.logger.warning("No input file with urls.")
         
     def start_requests(self):

@@ -110,10 +110,6 @@ class DatabasePipeline(object):
                 '''
         
         args = (item.get('price',0),ts,item.get('ID'))
-        # if item['price']:
-        #     args = (item['price'],ts,item['ID'])
-        # else:
-        #     args = (0,ts,item['ID'])
         
         self.logger.info("Added price record to {}".format(item['ID']))
         

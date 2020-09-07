@@ -11,11 +11,11 @@ class Brands(Spider):
     allowed_domains = ['auto.ru']
     start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html']
     area_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
-    brands_filter = ['toyota', 'kia', 'ford', 'skoda', 'hyundai', 'mercedes']
+    brands_filter = ['nissan', 'audi','volkswagen','bmw']
     
     custom_settings = {
         'FEEDS' : { 
-            'brands.json':{
+            r'json\brands.json':{
                 'format':'json',
                 'encoding':'utf8',
                 'store_empty':False,

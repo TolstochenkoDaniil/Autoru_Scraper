@@ -145,7 +145,7 @@ class MonitorSpiderMiddleware(AutoruspiderSpiderMiddleware):
         '''
         # query string
         query = f'''
-        SELECT [URL_]\n
+        SELECT DISTINCT [URL_]\n
         FROM [{self.db}].[dbo].[CarModificationsAutoUpdate]
         '''
         
