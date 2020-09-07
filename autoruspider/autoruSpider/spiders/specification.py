@@ -34,7 +34,7 @@ class SpecificationSpider(CrawlSpider):
     logger = logging.getLogger(__name__)
 
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    f_handler = logging.FileHandler(log, mode='w')
+    f_handler = logging.FileHandler(log, mode='a')
     f_handler.setLevel(logging.INFO)
     f_handler.setFormatter(f_format)
 

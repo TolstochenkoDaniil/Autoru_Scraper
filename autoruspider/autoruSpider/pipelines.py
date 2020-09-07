@@ -27,7 +27,7 @@ class DatabasePipeline(object):
     
     logger = logging.getLogger(__name__)
 
-    f_handler = logging.FileHandler(log, mode='w')
+    f_handler = logging.FileHandler(log, mode='a')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)
@@ -166,9 +166,9 @@ class SpecPipeline(DatabasePipeline):
         try:
             if hasattr(spider, 'OID'):
                 self.add_item(item, spider)
-        except Exception as ex:
-            if 'PRIMARY KEY' or 'UNIQUE KEY' not in ex[1]:
-                self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex[1]))
+        except msdb.IntegrityError as ie:
+            if 23000 not in ie.args[0]:
+                self.logger.warning("Exception occurred while adding item to database.\n {}".format(ie.args[1]))
                 self.logger.warning("Item {}".format(item.get('modification')))
         finally:
             return item 
@@ -262,7 +262,7 @@ class SpecImagesPipeline(ImagesPipeline):
     
     logger = logging.getLogger(__name__)
 
-    f_handler = logging.FileHandler(log, mode='w')
+    f_handler = logging.FileHandler(log, mode='a')
     f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     f_handler.setFormatter(f_format)
@@ -287,7 +287,7 @@ class SpecImagesPipeline(ImagesPipeline):
         if self.path:
             return "{}\\{}.jpg".format(self.path,image_guid)
         else:
-            return "full/%s.jpg".format(image_guid)
+            return "full/{}.jpg".format(image_guid)
     
     def get_path(self, item, info):
         '''
