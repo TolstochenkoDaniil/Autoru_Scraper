@@ -1,15 +1,16 @@
-from scrapy import Spider
+from scrapy import Spider, signals
 from scrapy.http import Request
 from scrapy.spidermiddlewares.httperror import HttpError
 from scrapy.utils.project import get_project_settings
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError, TCPTimedOutError
 
-import logging
-import urllib.parse as url_parse
 import re
 import os
 import json
+import logging
+from requests import post
+import urllib.parse as url_parse
 
 from ..items import CarBriefItem, CarLoader
 
@@ -21,21 +22,14 @@ class Monitor(Spider):
         'ITEM_PIPELINES': {
             'autoruSpider.pipelines.DatabasePipeline': 500,
         },
+        'SPIDER_MIDDLEWARES':{
+            'autoruSpider.middlewares.MonitorSpiderMiddleware':300
+        },
+        'EXTENSIONS': {
+            'autoruSpider.extensions.SetupSpiderLogging': 200,
+            'autoruSpider.extensions.TelegramLogger': None,
+        },
     }
-    log_dir = get_project_settings().get('LOG_DIR')
-    log = os.path.join(log_dir,'{}.log'.format(name))
-    
-    if not os.path.exists(log_dir):
-        os.mkdir(log_dir)
-    
-    logger = logging.getLogger(__name__)
-
-    f_handler = logging.FileHandler(log, mode='w')
-    f_handler.setLevel(logging.INFO)
-    f_format = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    f_handler.setFormatter(f_format)
-
-    logger.addHandler(f_handler)
     
     start_urls = []
     
@@ -46,28 +40,48 @@ class Monitor(Spider):
             related to project folder(where `settings.py` file is stored).
         '''
         super().__init__(*args,**kwargs)
+        self.path = path
         
         if path:
             abspath = os.path.join(get_project_settings().get('CWD'),path)
             if os.path.exists(abspath):
-                self.custom_settings = {
-                    'SPIDER_MIDDLEWARES' : {
-                        'autoruSpider.middlewares.MonitorSpiderMiddleware': None,
-                    }
-                }
                 
                 with open(abspath,'r') as f:
                     data = json.loads(f.read())
                     
                 self.start_urls = [url['link'] for url in data]
                 self.logger.info("Reading urls from file.")
+                self.path = abspath
             else:
-                self.custom_settings = {
-                    'SPIDER_MIDDLEWARES': {
-                        'autoruSpider.middlewares.MonitorSpiderMiddleware': 100,
-                    },
-                }
-                self.logger.warning("No input file with urls.")
+                self.logger.warning("Path does not exists")
+        else:
+            self.logger.info("No input file with urls.")
+    
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super().from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
+        crawler.signals.connect(spider.spider_opened, signal=signals.spider_opened)
+        
+        return spider
+    
+    def spider_closed(self, reason):
+        payload = {"status": reason}
+        
+        if not self.path:
+            url = get_project_settings().get("APPRAISAL_SERVICE")
+        else:
+            url = get_project_settings().get("UPDATE_SERVICE")
+        try:
+            response = post(url=url,json=payload)
+        except Exception as error:
+            self.logger.error(f"Exception requesting lead service\n{error}")
+        else:
+            self.logger.info(f"Response from lead service: {response.body}")
+       
+        
+    def spider_opened(self):
+        self.logger.info(f"Spider {self.name} opened")
         
     def start_requests(self):
         self.logger.info("Spider {} starts crawling.".format(self.name))

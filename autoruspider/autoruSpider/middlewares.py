@@ -108,7 +108,7 @@ class MonitorSpiderMiddleware(AutoruspiderSpiderMiddleware):
     '''
         Middleware for preinitialization `monitor` spider.
     '''
-    def __init__(self, db, user,password,host,driver):
+    def __init__(self,db,user,password,host,driver):
         self.db = db
         self.user = user
         self.password = password
@@ -135,8 +135,9 @@ class MonitorSpiderMiddleware(AutoruspiderSpiderMiddleware):
         return s
     
     def spider_opened(self, spider):
-        spider.logger.info('Spider opened: %s' % spider.name)
-        spider.start_urls = self._get_urls_from_db(spider)
+        if not spider.path:
+            print(f'Loading urls from DB. Spider {spider.name}')
+            spider.start_urls = self._get_urls_from_db(spider)
         
     def _get_urls_from_db(self,spider):
         '''

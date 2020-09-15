@@ -93,10 +93,10 @@ class DatabasePipeline(object):
                 [Transmission],[Owner],[Area])
                 VALUES
                 (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'''
-        args = (item['ID'],item['title'],item['distance'],item['year'],
-                item['link'],item['color'],item['car_type'],
-                item['horse_power'],item['engine_type'],item['fuel_type'],item['wheel_type'],
-                item['transmission'],item['advert'],item['area'])
+        args = (item.get("ID",None),item.get('title',None),item.get('distance',None),item.get('year',None),
+                item.get('link',None),item.get('color',None),item.get('car_type',None),
+                item.get('horse_power',None),item.get('engine_type',None),item.get('fuel_type',None),item.get('wheel_type',None),
+                item.get('transmission',None),item.get('advert',None),item.get('area',None))
         
         self.cursor.execute(query,args)
         self.conn.commit()
@@ -121,7 +121,7 @@ class DatabasePipeline(object):
                 FROM [{self.db}].[dbo].[Records]
                 WHERE [ID] = ?
                 '''
-        args = (item['ID'])
+        args = (item.get("ID"))
         
         self.cursor.execute(query,args)
         row = self.cursor.fetchone()
@@ -137,7 +137,7 @@ class DatabasePipeline(object):
                 WHERE [CarID] = ?
                 ORDER BY [ID] DESC
                 '''
-        args = (item['ID'])
+        args = (item.get("ID"))
         
         self.cursor.execute(query,args)
         row = self.cursor.fetchone()
@@ -165,8 +165,8 @@ class SpecPipeline(DatabasePipeline):
             if hasattr(spider, 'OID'):
                 self.add_item(item, spider)
         except Exception as ex:
-            if 'PRIMARY KEY' or 'UNIQUE KEY' not in ex[1]:
-                self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex[1]))
+            if 'PRIMARY KEY' or 'UNIQUE KEY' not in ex.args[1]:
+                self.logger.warning("Exception occurred while adding item to database.\n {}".format(ex.args[1]))
                 self.logger.warning("Item {}".format(item.get('modification')))
         finally:
             return item 
