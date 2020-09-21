@@ -24,9 +24,6 @@ class Profile(CrawlSpider):
         'https://www.rusprofile.ru/search?query={}&type=ul'
     ]
     
-    # rules = Rule(
-    #     LinkExtractor(allow=('?print=pdf'), tags=('a'), attrs=('href'), follow=False)
-    # )
     def __init__(self, inn=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not inn:
