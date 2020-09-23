@@ -3,12 +3,15 @@ from scrapy.spiders import CrawlSpider, Rule
 from scrapy.http import Request
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spidermiddlewares.httperror import HttpError
-from twisted.internet.error import DNSLookupError
-from twisted.internet.error import TimeoutError, TCPTimedOutError
+from twisted.internet.error import DNSLookupError, TimeoutError, TCPTimedOutError
+from scrapy_selenium import SeleniumRequest
+from selenium.webdriver.common.by import By
+import selenium.webdriver.support.expected_conditions as EC
 
 import os
+import time
 
-from ..items import RusprofileItem,RusprofileLoader
+from ..items import RusprofileItem, RusprofileLoader
 
 class Profile(CrawlSpider):
     name = 'profile'
@@ -17,6 +20,9 @@ class Profile(CrawlSpider):
     custom_settings = {
         'EXTENSIONS': {
             'rusprofile.extensions.SetupSpiderLogging': 200,
+        },
+        'DOWNLOADER_MIDDLEWARES': {
+            'rusprofile.middlewares.RusprofileSeleniumMiddleware': 300
         }
     }
     
@@ -24,14 +30,16 @@ class Profile(CrawlSpider):
         'https://www.rusprofile.ru/search?query={}&type=ul'
     ]
     
-    def __init__(self, inn=None, *args, **kwargs):
+    def __init__(self, inn=None, ogrn=None, new_lead=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not inn:
+        if not ogrn:
             raise AttributeError(
-                "Required attribute `inn` is missing\n"
+                "Required attribute `ogrn` is missing\n"
                 f"Provide correct input value to spider {self.name}"
             )
-        self.inn = [inn]
+            
+        self.param = ["+".join((str(ogrn),str(inn))) if inn else str(ogrn)]
+        self.new_lead = new_lead
 
     @classmethod 
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -46,21 +54,38 @@ class Profile(CrawlSpider):
     
     def item_scraped(self, item, response):
         self.logger.info(f"Scraped item:\n{item}")
-            
+
     def start_requests(self):
         
         if not self.start_urls and hasattr(self, 'start_url'):
             raise AttributeError(f"Spider {self.name} does not have values in 'start_urls'")
         else:
-            self.start_urls = [url.format(inn) for url, inn in zip(self.start_urls,self.inn)]
-        
+            self.start_urls = [url.format(param) for url, param in zip(self.start_urls,self.param)]
+
         for url in self.start_urls:
-            yield Request(
-                url=url,
-                callback=self.parse,
-                errback=self.errback_request,
-                dont_filter=True
-            )
+            if self.new_lead:
+                pdf_button_selector='.btn.btn-white.btn-icon.btn-pdf-icon.gtm_main_pdf'
+                yield SeleniumRequest(
+                    url=url,
+                    callback=self.get_pdf,
+                    errback=self.errback_request,
+                    dont_filter=True,
+                    wait_time=10,
+                    wait_until=EC.element_to_be_clickable((
+                        By.CSS_SELECTOR,
+                        pdf_button_selector
+                    )),
+                    cb_kwargs=dict(
+                        selector=pdf_button_selector
+                    )
+                )
+            else:
+                yield Request(
+                    url=url,
+                    callback=self.parse,
+                    errback=self.errback_request,
+                    dont_filter=True
+                )
             
     def parse(self, response):
         self.logger.info(f"Response url: {response.url}")
@@ -69,6 +94,14 @@ class Profile(CrawlSpider):
         profile_loader.load_profile(response.url)
         
         yield profile_loader.load_item()
+    
+    def get_pdf(self, response, selector):
+        self.logger.info(f"Downloading pdf from {response.url}")
+        
+        driver = response.request.meta.get('driver')
+        driver.find_element_by_css_selector(selector).click()
+        time.sleep(5)
+        driver.close()
         
     def errback_request(self, failure):
         self.logger.error(repr(failure))

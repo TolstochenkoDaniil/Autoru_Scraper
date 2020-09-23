@@ -10,8 +10,6 @@ from scrapy_selenium import SeleniumRequest
 
 import logging
 import os
-import json
-import socket
 
 from ..items import SpecLoader, SpecItem, ImageItem, ImageLoader, QutoLoader, QutoItem
 

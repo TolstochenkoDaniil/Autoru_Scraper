@@ -5,7 +5,7 @@
 
 from scrapy import Item, Field
 from scrapy.loader import ItemLoader
-from itemloaders.processors import TakeFirst, Compose
+from itemloaders.processors import Identity, TakeFirst, Compose
 
 import re
 
@@ -70,8 +70,10 @@ class RusprofileItem(Item):
     pfr = Field()
     fss = Field()
     
-    file_urls = Field()
-    files = Field()
+    # file_urls = Field(
+    #     output_processor=Identity()
+    # )
+    # files = Field()
     
 class RusprofileLoader(ItemLoader):
     default_output_processor = TakeFirst()
@@ -99,6 +101,6 @@ class RusprofileLoader(ItemLoader):
         self.add_css("okogu",".copy_target[id=clip_okogu]::text")
         self.add_css("okogu_type",".rightcol .company-row:contains('Коды статистики') .chief-title::text")
         
-        pdf_link = self.selector.css(".btn.btn-white.btn-icon.btn-pdf-icon.gtm_main_pdf::attr(href)").get()
-        file_url = ["".join((url,pdf_link))]
-        self.add_value("file_urls", file_url)
+        # pdf_link = self.selector.css(".btn.btn-white.btn-icon.btn-pdf-icon.gtm_main_pdf::attr(href)").get()
+        # file_url = ["".join((url,pdf_link,'&status=download'))]
+        # self.add_value("file_urls", file_url)

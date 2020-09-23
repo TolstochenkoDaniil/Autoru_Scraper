@@ -4,10 +4,77 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
-
-# useful for handling different item types with a single interface
+from scrapy.exceptions import NotConfigured
 from itemadapter import is_item, ItemAdapter
+from scrapy_selenium import SeleniumMiddleware
 
+from importlib import import_module
+import logging
+
+logger = logging.getLogger()
+
+class RusprofileSeleniumMiddleware(SeleniumMiddleware):
+    def __init__(self, driver_name, driver_executable_path, driver_arguments,
+                 browser_executable_path, driver_preferences):
+        '''
+        SeleniumMiddleware with additional experimental options
+        
+        Parameters
+        ----------
+        driver_preferences: dict
+            Selenium preferences to add as experimental options
+        '''
+        webdriver_base_path = f'selenium.webdriver.{driver_name}'
+
+        driver_klass_module = import_module(f'{webdriver_base_path}.webdriver')
+        driver_klass = getattr(driver_klass_module, 'WebDriver')
+
+        driver_options_module = import_module(f'{webdriver_base_path}.options')
+        driver_options_klass = getattr(driver_options_module, 'Options')
+
+        driver_options = driver_options_klass()
+        if browser_executable_path:
+            driver_options.binary_location = browser_executable_path
+        for argument in driver_arguments:
+            driver_options.add_argument(argument)
+        if driver_preferences:
+            driver_options.add_experimental_option(
+                'prefs', driver_preferences
+            )
+
+        driver_kwargs = {
+            'executable_path': driver_executable_path,
+            f'{driver_name}_options': driver_options
+        }
+
+        self.driver = driver_klass(**driver_kwargs)
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        driver_preferences = crawler.settings.get('SELENIUM_DRIVER_PREFERENCES')
+        driver_name = crawler.settings.get('SELENIUM_DRIVER_NAME')
+        driver_executable_path = crawler.settings.get('SELENIUM_DRIVER_EXECUTABLE_PATH')
+        browser_executable_path = crawler.settings.get('SELENIUM_BROWSER_EXECUTABLE_PATH')
+        driver_arguments = crawler.settings.get('SELENIUM_DRIVER_ARGUMENTS')
+
+        if not driver_name or not driver_executable_path:
+            raise NotConfigured(
+                'SELENIUM_DRIVER_NAME and SELENIUM_DRIVER_EXECUTABLE_PATH must be set'
+            )
+        if not driver_preferences:
+            logger.error("Selenium prefs should be set")
+            
+        middleware = cls(
+            driver_name=driver_name,
+            driver_executable_path=driver_executable_path,
+            driver_arguments=driver_arguments,
+            browser_executable_path=browser_executable_path,
+            driver_preferences = driver_preferences
+        )
+        
+        crawler.signals.connect(middleware.spider_closed, signals.spider_closed)
+        
+        return middleware
 
 class RusprofileSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,

@@ -2,6 +2,7 @@
 settings.py
 dbs/
 eggs/
+tests/
 *.conf
 *__pycache__
 test.*
@@ -10,7 +11,7 @@ test.*
 *.json
 crawl/
 *build/
-*project.egg-info/
+*.egg-info/
 *log
 autoruSpider/autoruSpider/csv
 autoruSpider/autoruSpider/json
