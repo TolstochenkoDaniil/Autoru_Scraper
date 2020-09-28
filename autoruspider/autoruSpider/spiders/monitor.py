@@ -43,7 +43,7 @@ class Monitor(Spider):
         self.path = path
         
         if path:
-            abspath = os.path.join(get_project_settings().get('CWD'),path)
+            abspath = os.path.join(get_project_settings().get('BASE_DIR'),path)
             if os.path.exists(abspath):
                 
                 with open(abspath,'r') as f:
@@ -77,7 +77,7 @@ class Monitor(Spider):
         except Exception as error:
             self.logger.error(f"Exception requesting lead service\n{error}")
         else:
-            self.logger.info(f"Response from lead service: {response.body}")
+            self.logger.info(f"Response from lead service: {response.text}")
        
         
     def spider_opened(self):

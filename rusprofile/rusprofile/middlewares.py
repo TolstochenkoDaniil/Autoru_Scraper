@@ -2,6 +2,9 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import sys
+import logging
+import requests
 
 from scrapy import signals
 from scrapy.exceptions import NotConfigured
@@ -9,7 +12,6 @@ from itemadapter import is_item, ItemAdapter
 from scrapy_selenium import SeleniumMiddleware
 
 from importlib import import_module
-import logging
 
 logger = logging.getLogger()
 
@@ -58,7 +60,7 @@ class RusprofileSeleniumMiddleware(SeleniumMiddleware):
         driver_arguments = crawler.settings.get('SELENIUM_DRIVER_ARGUMENTS')
 
         if not driver_name or not driver_executable_path:
-            raise NotConfigured(
+            raise ValueError(
                 'SELENIUM_DRIVER_NAME and SELENIUM_DRIVER_EXECUTABLE_PATH must be set'
             )
         if not driver_preferences:

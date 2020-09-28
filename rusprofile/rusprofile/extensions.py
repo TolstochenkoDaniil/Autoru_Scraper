@@ -1,9 +1,11 @@
 import os
+import sys
 import logging
 
 from scrapy.exceptions import NotConfigured
 from scrapy import signals
 from scrapy.utils.project import get_project_settings
+import requests
 
 from .utils import TelegramHandler
 
@@ -137,3 +139,80 @@ class TelegramLogger:
         self.logger.setLevel(logging.INFO)    
         handler = TelegramHandler(token=self.token,chat_id=self.chat_id)
         self.logger.addHandler(handler)
+        
+class SendMessageRabbitMQ:
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    
+    def __init__(self, exchange, headers):
+        self.exchange = exchange
+        self.headers = headers
+        self.spider = None
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        exchange = crawler.settings.get("RABBIT_EXCHANGE_URL")
+        headers = crawler.settings.get("RABBIT_HEADERS")
+        
+        if not exchange:
+            raise ValueError(
+                'RABBIT EXCHANGE URL AND RABBIT HEADERS SHOULD BE SET'
+            )
+        
+        rabbit = cls( 
+            exchange,
+            headers
+        )
+        
+        crawler.signals.connect(rabbit.spider_closed, signals.spider_closed)
+        
+        return rabbit
+    
+    def spider_closed(self, spider):
+        self.spider = spider
+        if not spider.new_lead:
+            return None
+        else:   
+            try:
+                response = requests.post(
+                    url=self.exchange,
+                    headers=self.headers,
+                    json=self.format_response()
+                )
+                if response.ok:
+                    self.spider.logger.info(f"Message from queue: {response.text}")
+            except Exception as error:
+                self.__class__.logger.error(f"{__name__} Could not send request to rabbit exchange\n{error}")
+            else:
+                self.spider.logger.info(f"{__name__} Sent message to {self.exchange}")
+            
+    def check_file_downloaded(self):
+        file_path = self.get_file_path()
+        
+        if os.path.exists(file_path):
+            return True
+        else:
+            return False
+        
+    def format_response(self):
+        if self.check_file_downloaded():
+            data = dict(
+                status='ok',
+                file_path=self.get_file_path(),
+                message='File downloaded'
+            )
+        else:
+            data = dict(
+                status='error',
+                file_path=None,
+                message='Failed download file'
+            )
+            
+        return data
+            
+    def get_file_path(self):
+        file_name = ".".join((self.spider.ogrn,'pdf'))
+        return os.path.join(get_project_settings().get('FILE_DIR'),file_name)

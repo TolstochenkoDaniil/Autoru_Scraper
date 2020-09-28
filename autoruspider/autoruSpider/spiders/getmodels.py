@@ -1,8 +1,8 @@
+from requests.api import get
 from scrapy import Spider
 from ..items import ModelsItem, ModelsLoader
 from scrapy.utils.project import get_project_settings
 
-import logging
 import re
 import os
 
@@ -10,35 +10,37 @@ class Brands(Spider):
     name = 'brands'
     allowed_domains = ['auto.ru']
     start_urls = ['https://auto.ru/htmlsitemap/mark_model_catalog.html']
-    area_list = ['moskovskaya_oblast', 'leningradskaya_oblast']
-    brands_filter = ['nissan', 'audi','volkswagen','bmw']
-    
+    area_list = [
+        'moskovskaya_oblast',
+        'leningradskaya_oblast'
+    ]
+    brands_filter = [
+        'nissan', 
+        'audi',
+        'volkswagen',
+        'bmw',
+        "toyota", 
+        "kia", 
+        "ford", 
+        "skoda", 
+        "hyundai", 
+        "mercedes",
+    ]
+    dump_dir = os.path.join(get_project_settings().get('BASE_DIR'),'json',f'{name}.json')
     custom_settings = {
         'FEEDS' : { 
-            r'json\brands.json':{
+            r'autoruSpider\json\brands.json':{
                 'format':'json',
                 'encoding':'utf8',
                 'store_empty':False,
                 'fields':['link'],
                 'indent':4,
             },
+        },
+        'EXTENSIONS':{
+            'autoruSpider.extensions.SetupSpiderLogging': 200,
         }
     }
-    
-    log_dir = get_project_settings().get('LOG_DIR')
-    log = os.path.join(log_dir,'brands.log')
-    
-    if not os.path.exists(log_dir):
-        os.mkdir(log_dir)
-    
-    logger = logging.getLogger(__name__)
-
-    f_handler = logging.FileHandler(log, 'w')
-    f_handler.setLevel(logging.INFO)
-    f_format = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-    f_handler.setFormatter(f_format)
-
-    logger.addHandler(f_handler)
 
     def parse(self, response):
         selectors = response.xpath('/html/body/div[1]/div')
@@ -55,7 +57,6 @@ class Brands(Spider):
             InfoModelsLoader = ModelsLoader(item = ModelsItem(),
                                             selector=selector)
             InfoModelsLoader.get_model(area)
-            self.logger.info("Added link: %s", InfoModelsLoader.get_collected_values('link'))
             
             return InfoModelsLoader.load_item()
             
