@@ -17,3 +17,4 @@ autoruSpider/autoruSpider/csv
 autoruSpider/autoruSpider/json
 *eggs/
 .gitignore
+dist/

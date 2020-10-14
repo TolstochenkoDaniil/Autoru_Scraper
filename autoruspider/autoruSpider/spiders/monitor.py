@@ -27,7 +27,7 @@ class Monitor(Spider):
         },
         'EXTENSIONS': {
             'autoruSpider.extensions.SetupSpiderLogging': 200,
-            'autoruSpider.extensions.TelegramLogger': None,
+            'autoruSpider.extensions.TelegramLogger': 300,
         },
     }
     
